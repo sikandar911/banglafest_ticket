@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+  SCANNER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum TicketStatus {
+  VALID
+  CHECKED_IN
+  CANCELLED
+}
+
+// ─── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  isVerified   Boolean  @default(false) @map("is_verified")
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // OTP fields for email verification and password reset
+  otpCode      String?  @map("otp_code")
+  otpExpiresAt DateTime? @map("otp_expires_at")
+  resetToken   String?  @map("reset_token")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
+
+  // Refresh token (single active session per user; can extend to a separate table for multi-device)
+  refreshToken String? @map("refresh_token")
+
+  // Relations
+  eventsCreated Event[]  @relation("EventCreatedBy")
+  orders        Order[]
+  tickets       Ticket[]
+
+  @@map("users")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime @map("start_time")
+  endTime     DateTime @map("end_time")
+  location    String?
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  creator     User?        @relation("EventCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  ticketTiers TicketTier[]
+
+  @@map("events")
+}
+
+model TicketTier {
+  id            String  @id @default(uuid())
+  eventId       String  @map("event_id")
+  name          String
+  price         Decimal @db.Decimal(10, 2)
+  totalCapacity Int     @map("total_capacity")
+  availableQty  Int     @map("available_qty")
+
+  // Relations
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+  orders  Order[]  @relation("OrderTier")
+
+  @@map("ticket_tiers")
+}
+
+model Order {
+  id                   String      @id @default(uuid())
+  userId               String      @map("user_id")
+  tierId               String      @map("tier_id")
+  quantity             Int         @default(1)
+  totalAmount          Decimal     @map("total_amount") @db.Decimal(10, 2)
+  stripeSessionId      String?     @map("stripe_session_id")
+  stripePaymentIntent  String?     @map("stripe_payment_intent")
+  status               OrderStatus @default(PENDING)
+  expiresAt            DateTime    @map("expires_at")
+  createdAt            DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticketTier TicketTier @relation("OrderTier", fields: [tierId], references: [id], onDelete: Restrict)
+  tickets    Ticket[]
+
+  @@map("orders")
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  orderId      String       @map("order_id")
+  ticketTierId String       @map("ticket_tier_id")
+  userId       String       @map("user_id")
+  status       TicketStatus @default(VALID)
+  scannedAt    DateTime?    @map("scanned_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketTier TicketTier @relation(fields: [ticketTierId], references: [id], onDelete: Restrict)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tickets")
+}
