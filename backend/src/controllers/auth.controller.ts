@@ -3,7 +3,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../lib/prisma';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service';
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  sendPasswordChangedEmail,
+} from '../services/email.service';
 
 const OTP_EXPIRES_MINUTES = parseInt(process.env.OTP_EXPIRES_IN_MINUTES || '15', 10);
 
@@ -87,6 +92,8 @@ export async function verifyEmail(req: Request, res: Response, next: NextFunctio
       where: { email },
       data: { isVerified: true, otpCode: null, otpExpiresAt: null },
     });
+
+    await sendWelcomeEmail(user.email, user.name);
 
     res.json({ message: 'Email verified successfully. You can now log in.' });
   } catch (err) {
@@ -274,6 +281,8 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
       where: { id: user.id },
       data: { passwordHash, resetToken: null, resetTokenExpiresAt: null, refreshToken: null },
     });
+
+    await sendPasswordChangedEmail(user.email, user.name);
 
     res.json({ message: 'Password reset successfully. Please log in.' });
   } catch (err) {

@@ -2,7 +2,10 @@
 import Stripe from 'stripe';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
-import { sendTicketConfirmationEmail } from '../services/email.service';
+import {
+  sendTicketConfirmationEmail,
+  sendOrderExpiredEmail,
+} from '../services/email.service';
 import { generateTicketPdf } from '../services/pdf.service';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -177,7 +180,13 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session): Promise<
   const orderId = session.metadata?.orderId;
   if (!orderId) return;
 
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      user: { select: { name: true, email: true } },
+      ticketTier: { include: { event: { select: { title: true } } } },
+    },
+  });
   if (!order || order.status !== 'PENDING') return;
 
   await prisma.$transaction([
@@ -190,4 +199,10 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session): Promise<
       data: { status: 'FAILED' },
     }),
   ]);
+
+  await sendOrderExpiredEmail(order.user.email, order.user.name, {
+    eventTitle: order.ticketTier.event.title,
+    tierName: order.ticketTier.name,
+    quantity: order.quantity,
+  });
 }

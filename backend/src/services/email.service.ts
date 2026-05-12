@@ -63,6 +63,162 @@ export async function sendPasswordResetEmail(
   });
 }
 
+// ─── Send Welcome Email ───────────────────────────────────────────────────────
+export async function sendWelcomeEmail(email: string, name: string): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'Welcome to Banglafest — you\'re all set! 🎉',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+          <p style="margin: 8px 0 0; opacity: 0.8;">Your account is verified!</p>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+          <h2 style="color: #1a1a2e;">Welcome, ${name}! 🎉</h2>
+          <p>Your email has been verified and your Banglafest account is ready to go.</p>
+          <p>You can now browse events, purchase tickets, and manage your orders from your dashboard.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL}/events"
+               style="background: #e94560; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+              Browse Events
+            </a>
+          </div>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            If you did not create this account, please contact us immediately.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+// ─── Send Password Changed Confirmation Email ─────────────────────────────────
+export async function sendPasswordChangedEmail(email: string, name: string): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'Your Banglafest password has been changed',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+          <h2 style="color: #1a1a2e;">Password Changed</h2>
+          <p>Hi ${name},</p>
+          <p>Your Banglafest account password was successfully changed.</p>
+          <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin: 20px 0;">
+            <strong>⚠️ Wasn't you?</strong> If you did not make this change, reset your password immediately using the link below.
+          </div>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL}/forgot-password"
+               style="background: #e94560; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+              Reset Password
+            </a>
+          </div>
+        </div>
+      </div>
+    `,
+  });
+}
+
+// ─── Send Refund Confirmation Email ───────────────────────────────────────────
+export async function sendRefundConfirmationEmail(
+  email: string,
+  name: string,
+  refundInfo: {
+    orderId: string;
+    amount: number;
+    eventTitle: string;
+    tierName: string;
+    quantity: number;
+  }
+): Promise<void> {
+  const formattedAmount = refundInfo.amount.toFixed(2);
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: `Your Banglafest refund of $${formattedAmount} has been processed`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+          <p style="margin: 8px 0 0; opacity: 0.8;">Refund Confirmation</p>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+          <p>Hi <strong>${name}</strong>,</p>
+          <p>Your refund has been successfully processed. Here are the details:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;">Order ID</td>
+              <td style="padding: 10px 0; font-weight: bold; text-align: right;">${refundInfo.orderId}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;">Event</td>
+              <td style="padding: 10px 0; font-weight: bold; text-align: right;">${refundInfo.eventTitle}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;">Ticket Tier</td>
+              <td style="padding: 10px 0; font-weight: bold; text-align: right;">${refundInfo.tierName} × ${refundInfo.quantity}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #666;">Refund Amount</td>
+              <td style="padding: 10px 0; font-weight: bold; text-align: right; color: #e94560; font-size: 18px;">$${formattedAmount}</td>
+            </tr>
+          </table>
+          <p>The refund will appear on your original payment method within <strong>5–10 business days</strong> depending on your bank.</p>
+          <p>Your tickets for this order have been cancelled and are no longer valid.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            Questions? Visit your account at <a href="${process.env.FRONTEND_URL}">${process.env.FRONTEND_URL}</a>.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+// ─── Send Order Expired Email ─────────────────────────────────────────────────
+export async function sendOrderExpiredEmail(
+  email: string,
+  name: string,
+  expiredInfo: {
+    eventTitle: string;
+    tierName: string;
+    quantity: number;
+  }
+): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'Your Banglafest ticket reservation has expired',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+          <p style="margin: 8px 0 0; opacity: 0.8;">Reservation Expired</p>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+          <p>Hi <strong>${name}</strong>,</p>
+          <p>Your reservation for <strong>${expiredInfo.quantity} × ${expiredInfo.tierName}</strong> ticket${expiredInfo.quantity > 1 ? 's' : ''} for <strong>${expiredInfo.eventTitle}</strong> has expired because the checkout was not completed within 10 minutes.</p>
+          <p>The held tickets have been released back to general availability. If you still want to attend, you're welcome to start a new checkout.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL}/events"
+               style="background: #e94560; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+              View Available Tickets
+            </a>
+          </div>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            Tickets are limited — don't wait too long next time!
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 // ─── Send Ticket Confirmation Email ───────────────────────────────────────────
 export async function sendTicketConfirmationEmail(
   email: string,

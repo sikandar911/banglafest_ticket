@@ -2,7 +2,10 @@ import { Response, NextFunction, Request } from 'express';
 import Stripe from 'stripe';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
-import { sendTicketConfirmationEmail } from '../services/email.service';
+import {
+  sendTicketConfirmationEmail,
+  sendRefundConfirmationEmail,
+} from '../services/email.service';
 import { generateTicketPdf } from '../services/pdf.service';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-04-10' });
@@ -235,7 +238,11 @@ export async function refundOrder(req: Request, res: Response, next: NextFunctio
     const { id } = req.params;
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { tickets: true },
+      include: {
+        tickets: true,
+        user: { select: { name: true, email: true } },
+        ticketTier: { include: { event: { select: { title: true } } } },
+      },
     });
 
     if (!order) {
@@ -264,6 +271,14 @@ export async function refundOrder(req: Request, res: Response, next: NextFunctio
         data: { status: 'CANCELLED' },
       }),
     ]);
+
+    await sendRefundConfirmationEmail(order.user.email, order.user.name, {
+      orderId: order.id,
+      amount: Number(order.totalAmount),
+      eventTitle: order.ticketTier.event.title,
+      tierName: order.ticketTier.name,
+      quantity: order.quantity,
+    });
 
     res.json({ message: 'Order refunded and tickets cancelled successfully.' });
   } catch (err) {

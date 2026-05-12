@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
+import { sendOrderExpiredEmail } from '../services/email.service';
 
 export function startExpireOrdersJob(): void {
   // Run every minute
@@ -10,7 +11,10 @@ export function startExpireOrdersJob(): void {
           status: 'PENDING',
           expiresAt: { lt: new Date() },
         },
-        select: { id: true, tierId: true, quantity: true },
+        include: {
+          user: { select: { name: true, email: true } },
+          ticketTier: { include: { event: { select: { title: true } } } },
+        },
       });
 
       if (expiredOrders.length === 0) return;
@@ -19,19 +23,27 @@ export function startExpireOrdersJob(): void {
 
       await prisma.$transaction(async (tx) => {
         for (const order of expiredOrders) {
-          // Restore ticket availability
           await tx.ticketTier.update({
             where: { id: order.tierId },
             data: { availableQty: { increment: order.quantity } },
           });
-
-          // Mark order as FAILED
           await tx.order.update({
             where: { id: order.id },
             data: { status: 'FAILED' },
           });
         }
       });
+
+      // Send expiry notifications after transaction commits
+      await Promise.allSettled(
+        expiredOrders.map((order) =>
+          sendOrderExpiredEmail(order.user.email, order.user.name, {
+            eventTitle: order.ticketTier.event.title,
+            tierName: order.ticketTier.name,
+            quantity: order.quantity,
+          })
+        )
+      );
 
       console.log(`[CronJob] Successfully expired ${expiredOrders.length} order(s) and restored inventory.`);
     } catch (err) {
