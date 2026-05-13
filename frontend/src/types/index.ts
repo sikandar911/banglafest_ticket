@@ -25,6 +25,8 @@ export interface TicketTier {
   availableQty: number;
   availabilityStatus: AvailabilityStatus;
   description?: string;
+  features?: string[];
+  maxPerPerson: number;
   eventId: string;
 }
 
@@ -51,6 +53,7 @@ export interface Order {
   totalAmount: number;
   status: OrderStatus;
   expiresAt: string;
+  isBypassed?: boolean;
   createdAt: string;
   stripeSessionId?: string;
   tier?: TicketTier & { event: Event };
@@ -108,6 +111,7 @@ export interface ScanResponse {
     holderName?: string;
     event: string;
     tier: string;
+    isBypassed?: boolean;
     scannedAt?: string;
   };
 }

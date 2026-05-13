@@ -27,15 +27,34 @@ export function MyOrdersPage() {
         <div className="space-y-3">
           {orders.map((order) => (
             <div key={order.id} className="card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-white">
                     {order.tier?.event?.title ?? 'Order'}
                   </p>
                   <OrderStatusBadge status={order.status} />
+                  {order.isBypassed && (
+                    <span className="badge bg-orange-900 text-orange-200 text-xs font-semibold">
+                      🔐 Admin Bypass
+                    </span>
+                  )}
                 </div>
-                <p className="text-sm text-gray-400">{order.tier?.name} × {order.quantity}</p>
-                <p className="text-xs text-gray-500">{format(new Date(order.createdAt), 'MMM d, yyyy • h:mm a')}</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-400">{order.tier?.name} × {order.quantity}</p>
+                  {order.tier?.description && (
+                    <p className="text-xs text-gray-500 italic">{order.tier?.description}</p>
+                  )}
+                  {order.tier?.features && order.tier?.features.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {order.tier.features.map((feature, idx) => (
+                        <span key={idx} className="badge badge-primary text-xs">
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500">{format(new Date(order.createdAt), 'MMM d, yyyy â€¢ h:mm a')}</p>
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-lg font-bold text-white">${Number(order.totalAmount).toFixed(2)}</p>

@@ -16,6 +16,7 @@ export async function scanTicket(req: AuthRequest, res: Response, next: NextFunc
       where: { id: ticketId },
       include: {
         user: { select: { name: true, email: true } },
+        order: { select: { isBypassed: true } },
         ticketTier: {
           include: { event: { select: { title: true, startTime: true, endTime: true, location: true } } },
         },
@@ -41,6 +42,7 @@ export async function scanTicket(req: AuthRequest, res: Response, next: NextFunc
           holder: ticket.user.name,
           tier: ticket.ticketTier.name,
           event: ticket.ticketTier.event.title,
+          isBypassed: ticket.order?.isBypassed,
         },
       });
       return;
@@ -56,6 +58,7 @@ export async function scanTicket(req: AuthRequest, res: Response, next: NextFunc
           holder: ticket.user.name,
           tier: ticket.ticketTier.name,
           event: ticket.ticketTier.event.title,
+          isBypassed: ticket.order?.isBypassed,
           scannedAt: ticket.scannedAt,
         },
       });
@@ -78,6 +81,7 @@ export async function scanTicket(req: AuthRequest, res: Response, next: NextFunc
         email: ticket.user.email,
         tier: ticket.ticketTier.name,
         event: ticket.ticketTier.event.title,
+        isBypassed: ticket.order?.isBypassed,
         eventDate: ticket.ticketTier.event.startTime,
         location: ticket.ticketTier.event.location,
         checkedInAt: updated.scannedAt,
@@ -112,6 +116,7 @@ export async function searchTickets(req: Request, res: Response, next: NextFunct
         tickets: {
           where: { status: { not: 'CANCELLED' } },
           include: {
+            order: { select: { isBypassed: true } },
             ticketTier: {
               include: { event: { select: { title: true, startTime: true } } },
             },
@@ -128,6 +133,7 @@ export async function searchTickets(req: Request, res: Response, next: NextFunct
         tier: ticket.ticketTier.name,
         event: ticket.ticketTier.event.title,
         eventDate: ticket.ticketTier.event.startTime,
+        isBypassed: ticket.order?.isBypassed,
         status: ticket.status,
         scannedAt: ticket.scannedAt,
       }))

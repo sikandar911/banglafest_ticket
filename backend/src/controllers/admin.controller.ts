@@ -83,7 +83,7 @@ export async function deleteEvent(req: Request, res: Response, next: NextFunctio
 export async function createTier(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id: eventId } = req.params;
-    const { name, price, totalCapacity } = req.body;
+    const { name, description, price, totalCapacity, features, maxPerPerson } = req.body;
 
     const event = await prisma.event.findUnique({ where: { id: eventId } });
     if (!event) {
@@ -92,10 +92,24 @@ export async function createTier(req: Request, res: Response, next: NextFunction
     }
 
     const tier = await prisma.ticketTier.create({
-      data: { eventId, name, price, totalCapacity, availableQty: totalCapacity },
+      data: {
+        eventId,
+        name,
+        description: description || null,
+        price,
+        totalCapacity,
+        availableQty: totalCapacity,
+        features: features && features.length > 0 ? JSON.stringify(features) : null,
+        maxPerPerson: maxPerPerson || 1,
+      },
     });
 
-    res.status(201).json({ tier });
+    res.status(201).json({ 
+      tier: {
+        ...tier,
+        features: tier.features ? JSON.parse(tier.features) : [],
+      }
+    });
   } catch (err) {
     next(err);
   }
@@ -105,7 +119,7 @@ export async function createTier(req: Request, res: Response, next: NextFunction
 export async function updateTier(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const { name, price, totalCapacity } = req.body;
+    const { name, description, price, totalCapacity, features, maxPerPerson } = req.body;
 
     const existing = await prisma.ticketTier.findUnique({ where: { id } });
     if (!existing) {
@@ -113,20 +127,30 @@ export async function updateTier(req: Request, res: Response, next: NextFunction
       return;
     }
 
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (description !== undefined) updateData.description = description || null;
+    if (price !== undefined) updateData.price = price;
+    if (totalCapacity !== undefined) {
+      updateData.totalCapacity = totalCapacity;
+      updateData.availableQty = existing.availableQty + (totalCapacity - existing.totalCapacity);
+    }
+    if (features !== undefined) {
+      updateData.features = features && features.length > 0 ? JSON.stringify(features) : null;
+    }
+    if (maxPerPerson !== undefined) updateData.maxPerPerson = maxPerPerson;
+
     const tier = await prisma.ticketTier.update({
       where: { id },
-      data: {
-        ...(name && { name }),
-        ...(price !== undefined && { price }),
-        ...(totalCapacity !== undefined && {
-          totalCapacity,
-          // Adjust available qty proportionally if capacity changes
-          availableQty: existing.availableQty + (totalCapacity - existing.totalCapacity),
-        }),
-      },
+      data: updateData,
     });
 
-    res.json({ tier });
+    res.json({ 
+      tier: {
+        ...tier,
+        features: tier.features ? JSON.parse(tier.features) : [],
+      }
+    });
   } catch (err) {
     next(err);
   }
@@ -333,6 +357,117 @@ export async function resendTicket(req: Request, res: Response, next: NextFuncti
     );
 
     res.json({ message: 'Ticket resent successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/admin/bypass - Admin book tickets without payment
+export async function bypassBookTicket(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { userId, tierId, quantity } = req.body;
+
+    // Validate input
+    if (!userId || !tierId || !quantity || quantity < 1) {
+      res.status(400).json({ error: 'Invalid input. Provide userId, tierId, and quantity.' });
+      return;
+    }
+
+    // Check user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    // Check tier exists and has availability
+    const tier = await prisma.ticketTier.findUnique({
+      where: { id: tierId },
+      include: { event: true },
+    });
+    if (!tier) {
+      res.status(404).json({ error: 'Ticket tier not found.' });
+      return;
+    }
+
+    if (tier.availableQty < quantity) {
+      res.status(400).json({ error: `Only ${tier.availableQty} tickets available.` });
+      return;
+    }
+
+    // Create order with bypass flag
+    const order = await prisma.order.create({
+      data: {
+        userId,
+        tierId,
+        quantity,
+        totalAmount: 0, // No charge for bypass
+        status: 'PAID', // Auto-mark as paid since it's admin bypass
+        isBypassed: true,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days expiry
+      },
+      include: {
+        ticketTier: { include: { event: true } },
+      },
+    });
+
+    // Update tier availability
+    await prisma.ticketTier.update({
+      where: { id: tierId },
+      data: { availableQty: tier.availableQty - quantity },
+    });
+
+    // Generate tickets
+    const ticketPromises = [];
+    for (let i = 0; i < quantity; i++) {
+      ticketPromises.push(
+        prisma.ticket.create({
+          data: {
+            orderId: order.id,
+            ticketTierId: tierId,
+            userId,
+          },
+        })
+      );
+    }
+    const tickets = await Promise.all(ticketPromises);
+
+    // Generate PDFs and send email
+    const pdfBuffers = await Promise.all(
+      tickets.map((ticket) =>
+        generateTicketPdf({
+          ticketId: ticket.id,
+          userName: user.name,
+          userEmail: user.email,
+          eventTitle: order.ticketTier.event.title,
+          tierName: order.ticketTier.name,
+          eventDate: order.ticketTier.event.startTime,
+          location: order.ticketTier.event.location ?? '',
+          orderId: order.id,
+          createdAt: ticket.createdAt,
+        })
+      )
+    );
+
+    await sendTicketConfirmationEmail(
+      user.email,
+      user.name,
+      tickets.map((ticket, idx) => ({
+        ticketId: ticket.id,
+        pdfBuffer: pdfBuffers[idx],
+      })),
+      {
+        eventTitle: order.ticketTier.event.title,
+        tierName: order.ticketTier.name,
+        eventDate: order.ticketTier.event.startTime,
+      }
+    );
+
+    res.status(201).json({
+      order,
+      tickets,
+      message: `${quantity} bypass ticket(s) booked successfully for ${user.name}`,
+    });
   } catch (err) {
     next(err);
   }

@@ -72,6 +72,9 @@ export function ScannerPage() {
             <div className="text-sm text-gray-400 space-y-1">
               <p>Event: <span className="text-white">{lastResult.ticket.event}</span></p>
               <p>Tier: <span className="text-white">{lastResult.ticket.tier}</span></p>
+              {lastResult.ticket.isBypassed && (
+                <p className="text-orange-400 font-semibold">🔐 Admin Bypass Ticket</p>
+              )}
               {lastResult.ticket.holderName && (
                 <p>Holder: <span className="text-white">{lastResult.ticket.holderName}</span></p>
               )}

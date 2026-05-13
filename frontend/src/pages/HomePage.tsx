@@ -67,8 +67,18 @@ export function HomePage() {
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-primary-400 shrink-0" />
                       {event.location}
-                    </div>
-                  </div>
+                    </div>                    {event.ticketTiers && event.ticketTiers.length > 0 && (
+                      <div className="pt-2 space-y-1">
+                        <p className="text-xs text-gray-500 font-semibold">Available Tiers:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {event.ticketTiers.map((tier) => (
+                            <span key={tier.id} className="text-xs bg-primary-900 text-primary-300 px-2 py-1 rounded">
+                              {tier.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}                  </div>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">

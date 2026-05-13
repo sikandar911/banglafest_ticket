@@ -38,4 +38,8 @@ export const adminApi = {
 
   resendTicket: (orderId: string) =>
     api.post(`/api/admin/orders/${orderId}/resend-ticket`),
+
+  // Bypass - Book tickets without payment
+  bypassBookTicket: (data: { userId: string; tierId: string; quantity: number }) =>
+    api.post<{ order: Order; tickets: any[]; message: string }>('/api/admin/bypass', data),
 };

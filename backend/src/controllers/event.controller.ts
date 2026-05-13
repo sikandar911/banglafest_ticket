@@ -11,9 +11,12 @@ export async function listEvents(_req: Request, res: Response, next: NextFunctio
           select: {
             id: true,
             name: true,
+            description: true,
             price: true,
             totalCapacity: true,
             availableQty: true,
+            features: true,
+            maxPerPerson: true,
           },
         },
       },
@@ -24,6 +27,7 @@ export async function listEvents(_req: Request, res: Response, next: NextFunctio
       ticketTiers: event.ticketTiers.map((tier) => ({
         ...tier,
         price: Number(tier.price),
+        features: tier.features ? JSON.parse(tier.features) : [],
         availabilityStatus: getAvailabilityStatus(tier.availableQty, tier.totalCapacity),
       })),
     }));
@@ -45,9 +49,12 @@ export async function getEvent(req: Request, res: Response, next: NextFunction):
           select: {
             id: true,
             name: true,
+            description: true,
             price: true,
             totalCapacity: true,
             availableQty: true,
+            features: true,
+            maxPerPerson: true,
           },
         },
       },
@@ -64,6 +71,7 @@ export async function getEvent(req: Request, res: Response, next: NextFunction):
         ticketTiers: event.ticketTiers.map((tier) => ({
           ...tier,
           price: Number(tier.price),
+          features: tier.features ? JSON.parse(tier.features) : [],
           availabilityStatus: getAvailabilityStatus(tier.availableQty, tier.totalCapacity),
         })),
       },

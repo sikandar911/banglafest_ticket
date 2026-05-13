@@ -14,6 +14,7 @@ import {
   listOrders,
   refundOrder,
   resendTicket,
+  bypassBookTicket,
   updateUserRole,
 } from '../controllers/admin.controller';
 
@@ -127,9 +128,17 @@ router.delete('/events/:id', deleteEvent);
  *             properties:
  *               name:
  *                 type: string
+ *               description:
+ *                 type: string
  *               price:
  *                 type: number
  *               totalCapacity:
+ *                 type: integer
+ *               features:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               maxPerPerson:
  *                 type: integer
  *     responses:
  *       201:
@@ -139,8 +148,11 @@ router.post(
   '/events/:id/tiers',
   [
     body('name').trim().notEmpty().withMessage('Tier name is required.'),
+    body('description').optional().trim(),
     body('price').isFloat({ min: 0 }).withMessage('Price must be a non-negative number.'),
     body('totalCapacity').isInt({ min: 1 }).withMessage('Total capacity must be at least 1.'),
+    body('features').optional().isArray().withMessage('Features must be an array.'),
+    body('maxPerPerson').optional().isInt({ min: 1 }).withMessage('Max per person must be at least 1.'),
   ],
   validate,
   createTier
@@ -164,7 +176,19 @@ router.post(
  *       200:
  *         description: Tier updated
  */
-router.put('/tiers/:id', updateTier);
+router.put(
+  '/tiers/:id',
+  [
+    body('name').optional().trim(),
+    body('description').optional().trim(),
+    body('price').optional().isFloat({ min: 0 }),
+    body('totalCapacity').optional().isInt({ min: 1 }),
+    body('features').optional().isArray(),
+    body('maxPerPerson').optional().isInt({ min: 1 }),
+  ],
+  validate,
+  updateTier
+);
 
 /**
  * @swagger
@@ -266,6 +290,42 @@ router.post('/orders/:id/refund', refundOrder);
  *         description: Ticket resent
  */
 router.post('/tickets/:ticketId/resend', resendTicket);
+
+/**
+ * @swagger
+ * /api/admin/bypass:
+ *   post:
+ *     summary: Admin bypass - Book tickets without payment
+ *     tags: [Admin - Orders]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               tierId:
+ *                 type: string
+ *               quantity:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Bypass tickets booked successfully
+ */
+router.post(
+  '/bypass',
+  [
+    body('userId').notEmpty().withMessage('userId is required.'),
+    body('tierId').notEmpty().withMessage('tierId is required.'),
+    body('quantity').isInt({ min: 1 }).withMessage('quantity must be at least 1.'),
+  ],
+  validate,
+  bypassBookTicket
+);
 
 /**
  * @swagger
