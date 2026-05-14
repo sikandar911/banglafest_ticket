@@ -45,21 +45,36 @@ export function HomePage() {
             const minPrice = event.ticketTiers.length
               ? Math.min(...event.ticketTiers.map((t) => t.price))
               : null;
-            const allSoldOut = event.ticketTiers.every((t) => t.availabilityStatus === 'SOLD_OUT');
+            const allSoldOut = event.ticketTiers.length > 0 && event.ticketTiers.every((t) => t.availabilityStatus === 'SOLD_OUT');
 
             return (
               <Link
                 key={event.id}
                 to={`/events/${event.id}`}
-                className="card hover:border-primary-700 transition-all group flex flex-col"
+                className="card hover:border-primary-700 transition-all group flex flex-col overflow-hidden p-0"
               >
-                <div className="flex-1">
+                {event.imageUrl ? (
+                  <div className="relative h-44 overflow-hidden">
+                    <img
+                      src={event.imageUrl}
+                      alt={event.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent" />
+                    {allSoldOut && (
+                      <span className="absolute top-3 right-3 badge-sold-out">Sold Out</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="h-2 bg-gradient-to-r from-primary-700 to-primary-500 rounded-t-xl" />
+                )}
+                <div className="flex-1 p-5 flex flex-col">
                   <h2 className="text-xl font-bold text-white mb-2 group-hover:text-primary-400 transition-colors">
                     {event.title}
                   </h2>
                   <p className="text-gray-400 text-sm mb-4 line-clamp-2">{event.description}</p>
 
-                  <div className="space-y-2 text-sm text-gray-400">
+                  <div className="space-y-2 text-sm text-gray-400 flex-1">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary-400 shrink-0" />
                       {format(new Date(event.startTime), 'EEE, MMM d yyyy • h:mm a')}
@@ -67,7 +82,8 @@ export function HomePage() {
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-primary-400 shrink-0" />
                       {event.location}
-                    </div>                    {event.ticketTiers && event.ticketTiers.length > 0 && (
+                    </div>
+                    {event.ticketTiers && event.ticketTiers.length > 0 && (
                       <div className="pt-2 space-y-1">
                         <p className="text-xs text-gray-500 font-semibold">Available Tiers:</p>
                         <div className="flex flex-wrap gap-1">
@@ -78,18 +94,21 @@ export function HomePage() {
                           ))}
                         </div>
                       </div>
-                    )}                  </div>
-                </div>
+                    )}
+                  </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">
-                  <span className="text-white font-semibold">
-                    {minPrice !== null ? `From $${minPrice.toFixed(2)}` : 'Free'}
-                  </span>
-                  {allSoldOut ? (
-                    <span className="badge-sold-out">Sold Out</span>
-                  ) : (
-                    <span className="btn-primary py-1.5 text-sm">Get Tickets</span>
-                  )}
+                  <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">
+                    <span className="text-white font-semibold">
+                      {minPrice !== null ? `From $${minPrice.toFixed(2)}` : event.ticketTiers.length === 0 ? 'Tickets TBA' : 'Free'}
+                    </span>
+                    {event.ticketTiers.length === 0 ? (
+                      <span className="text-xs text-gray-500 font-medium">Coming Soon</span>
+                    ) : allSoldOut ? (
+                      <span className="badge-sold-out">Sold Out</span>
+                    ) : (
+                      <span className="btn-primary py-1.5 text-sm">Get Tickets</span>
+                    )}
+                  </div>
                 </div>
               </Link>
             );

@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { eventsApi } from "../api/events";
 import { ordersApi } from "../api/orders";
-import { stripeApi } from "../api/stripe";
 import { PageSpinner } from "../components/ui/Spinner";
 import { AvailabilityBadge } from "../components/ui/Badge";
 import { useAuth } from "../contexts/AuthContext";
@@ -60,16 +59,15 @@ export function EventDetailPage() {
       return;
     }
 
+    const [[tierId, quantity]] = Object.entries(selectedTiers);
+
     setIsCheckingOut(true);
     try {
-      // Create order with multiple tiers
-      const { data: orderData } = await ordersApi.create({ 
-        tiers: selectedTiers 
-      });
-      const { data: sessionData } = await stripeApi.createCheckoutSession(orderData.order.id);
-      window.location.href = sessionData.checkoutUrl;
-    } catch (err) {
-      toast.error("Failed to create order");
+      const { data: orderData } = await ordersApi.create({ tierId, quantity });
+      await ordersApi.confirm(orderData.orderId);
+      navigate(`/checkout/success?orderId=${orderData.orderId}`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to confirm booking");
     } finally {
       setIsCheckingOut(false);
     }
@@ -97,6 +95,13 @@ export function EventDetailPage() {
       >
         <ArrowLeft className="w-4 h-4" /> Back to events
       </button>
+
+      {event.imageUrl && (
+        <div className="relative h-56 sm:h-72 rounded-2xl overflow-hidden mb-8">
+          <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950/70 to-transparent" />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Event info */}
@@ -252,11 +257,10 @@ export function EventDetailPage() {
                 >
                   {isCheckingOut 
                     ? "Processing..." 
-                    : isAuthenticated 
-                    ? "Proceed to Checkout" 
-                    : "Login to Buy Tickets"}
+                    : isAuthenticated
+                    ? "Confirm Booking"
+                    : "Login to Book Tickets"}
                 </button>
-                <p className="text-xs text-gray-500 text-center mt-3">Secure payment via Stripe</p>
               </>
             ) : (
               <div className="space-y-3">

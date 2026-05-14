@@ -2,7 +2,41 @@
   "permissions": {
     "allow": [
       "Bash(Test-Path *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(psql --version)",
+      "Read(//mnt/e/MERN/banglafest_ticket/**)",
+      "Bash(npm install *)",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\frontend && npm install\")",
+      "PowerShell(cmd /c \"psql -U postgres -c \\\\\"\\\\l\\\\\" 2>&1\")",
+      "PowerShell(cmd /c \"dir \"\"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\data\\\\pg_hba.conf\"\" 2>&1\")",
+      "PowerShell(cmd /c \"\"\"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\pg_ctl.exe\"\" reload -D \"\"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\data\"\" 2>&1\")",
+      "PowerShell(cmd /c \"sc query postgresql-x64-17 2>&1\")",
+      "PowerShell(cmd /c \"net start postgresql-x64-17 2>&1\")",
+      "PowerShell(cmd /c \"psql -U postgres -c \"\"ALTER USER postgres WITH PASSWORD 'postgres';\"\" 2>&1\")",
+      "PowerShell(cmd /c \"psql -U postgres -c \"\"CREATE DATABASE banglafest_db;\"\" 2>&1\")",
+      "PowerShell(cmd /c \"psql -U postgres -c \"\"SELECT pg_reload_conf\\(\\);\"\" 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && npx ts-node-dev --respawn --transpile-only src/index.ts 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\frontend && npx vite 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && npx ts-node src/index.ts 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && node_modules\\\\.bin\\\\ts-node src/index.ts 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && node_modules\\\\.bin\\\\ts-node-dev --transpile-only src/index.ts 2>&1\")",
+      "PowerShell(cmd /c \"curl -s http://localhost:5000/api/health 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && node_modules\\\\.bin\\\\ts-node-dev --respawn --transpile-only src/index.ts 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\frontend && node_modules\\\\.bin\\\\vite 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket && git log --oneline -10 && echo --- && git diff HEAD~1 HEAD --stat\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket && git diff HEAD~1 HEAD 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && npx prisma migrate deploy 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && node prisma/seed.js 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && npx prisma generate 2>&1\")",
+      "PowerShell(cmd /c \"for /f \"\"tokens=5\"\" %a in \\('netstat -aon ^| find \"\":5000\"\"'\\) do taskkill /F /PID %a 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\frontend && npm install jsqr 2>&1\")",
+      "PowerShell(cmd /c \"cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && npx prisma migrate dev --name add_event_image_url 2>&1\")",
+      "PowerShell(cmd /c \"for /f \"\"tokens=5\"\" %a in \\('netstat -aon ^| find \"\":5000 \"\"'\\) do taskkill /F /PID %a 2>&1\")",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(npm run *)",
+      "Bash(echo \"Backend started PID: $!\")",
+      "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && npm run dev\" -WindowStyle Normal)",
+      "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c cd /d E:\\\\MERN\\\\banglafest_ticket\\\\frontend && npm run dev\" -WindowStyle Normal)"
     ]
   }
 }

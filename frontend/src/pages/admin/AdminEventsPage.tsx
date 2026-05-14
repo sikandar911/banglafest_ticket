@@ -8,12 +8,13 @@ import { eventsApi } from "../../api/events";
 import { PageSpinner } from "../../components/ui/Spinner";
 import type { Event } from "../../types";
 
-type EventForm = { 
-  title: string; 
-  description: string; 
-  startTime: string; 
-  endTime: string; 
-  location: string 
+type EventForm = {
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  imageUrl: string;
 };
 
 type TierForm = { 
@@ -25,12 +26,13 @@ type TierForm = {
   maxPerPerson: string;
 };
 
-const emptyEvent: EventForm = { 
-  title: "", 
-  description: "", 
-  startTime: "", 
-  endTime: "", 
-  location: "" 
+const emptyEvent: EventForm = {
+  title: "",
+  description: "",
+  startTime: "",
+  endTime: "",
+  location: "",
+  imageUrl: "",
 };
 
 const emptyTier: TierForm = { 
@@ -122,6 +124,7 @@ export function AdminEventsPage() {
       startTime: event.startTime.slice(0, 16),
       endTime: event.endTime.slice(0, 16),
       location: event.location || "",
+      imageUrl: event.imageUrl || "",
     });
     setShowEventForm(true);
   };
@@ -212,12 +215,29 @@ export function AdminEventsPage() {
             </div>
             <div>
               <label className="label">Description</label>
-              <textarea 
-                className="input" 
-                rows={3} 
-                value={eventForm.description} 
-                onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} 
+              <textarea
+                className="input"
+                rows={3}
+                value={eventForm.description}
+                onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
               />
+            </div>
+            <div>
+              <label className="label">Cover Image URL (optional)</label>
+              <input
+                className="input"
+                placeholder="https://example.com/image.jpg"
+                value={eventForm.imageUrl}
+                onChange={(e) => setEventForm({ ...eventForm, imageUrl: e.target.value })}
+              />
+              {eventForm.imageUrl && (
+                <img
+                  src={eventForm.imageUrl}
+                  alt="Preview"
+                  className="mt-2 h-24 w-full object-cover rounded-lg"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
             </div>
             <div className="flex gap-3">
               <button 

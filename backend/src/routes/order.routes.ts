@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate } from '../middleware/authenticate';
 import { validate } from '../middleware/validate';
-import { createOrder, getOrder } from '../controllers/order.controller';
+import { createOrder, getOrder, confirmOrder } from '../controllers/order.controller';
 
 const router = Router();
 
@@ -208,5 +208,6 @@ router.post(
  *                   type: string
  */
 router.get('/:id', authenticate, getOrder);
+router.post('/:id/confirm', authenticate, confirmOrder);
 
 export default router;

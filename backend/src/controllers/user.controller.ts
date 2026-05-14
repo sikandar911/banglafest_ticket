@@ -1,9 +1,7 @@
 import { Response, NextFunction } from 'express';
-import QRCode from 'qrcode';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
 import { generateTicketPdf } from '../services/pdf.service';
-import { sendTicketConfirmationEmail } from '../services/email.service';
 
 // GET /api/users/me/tickets
 export async function getMyTickets(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -13,35 +11,41 @@ export async function getMyTickets(req: AuthRequest, res: Response, next: NextFu
       orderBy: { createdAt: 'desc' },
       include: {
         ticketTier: {
-          include: { event: { select: { id: true, title: true, startTime: true, endTime: true, location: true } } },
+          include: { event: true },
         },
-        order: { select: { status: true, totalAmount: true, createdAt: true } },
+        order: { select: { id: true, status: true, totalAmount: true, isBypassed: true, createdAt: true } },
       },
     });
 
-    // Generate QR code images for each valid ticket
-    const ticketsWithQr = await Promise.all(
-      tickets.map(async (ticket) => {
-        const qrDataUrl = await QRCode.toDataURL(ticket.id, { errorCorrectionLevel: 'H', width: 300 });
-        return {
-          id: ticket.id,
-          status: ticket.status,
-          scannedAt: ticket.scannedAt,
-          createdAt: ticket.createdAt,
-          qrCode: qrDataUrl,
-          ticketTier: {
-            name: ticket.ticketTier.name,
-            price: Number(ticket.ticketTier.price),
-          },
-          event: ticket.ticketTier.event,
-          order: {
-            status: ticket.order.status,
-            totalAmount: Number(ticket.order.totalAmount),
-            createdAt: ticket.order.createdAt,
-          },
-        };
-      })
-    );
+    const ticketsWithQr = tickets.map((ticket) => ({
+      id: ticket.id,
+      status: ticket.status,
+      scannedAt: ticket.scannedAt,
+      createdAt: ticket.createdAt,
+      // QR code from external API — no package
+      qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticket.id)}&ecc=H&margin=5`,
+      event: {
+        id: ticket.ticketTier.event.id,
+        title: ticket.ticketTier.event.title,
+        startTime: ticket.ticketTier.event.startTime,
+        endTime: ticket.ticketTier.event.endTime,
+        location: ticket.ticketTier.event.location,
+        imageUrl: ticket.ticketTier.event.imageUrl,
+      },
+      tier: {
+        name: ticket.ticketTier.name,
+        price: Number(ticket.ticketTier.price),
+        description: ticket.ticketTier.description,
+        features: ticket.ticketTier.features ? JSON.parse(ticket.ticketTier.features) : [],
+      },
+      order: {
+        id: ticket.order.id,
+        status: ticket.order.status,
+        totalAmount: Number(ticket.order.totalAmount),
+        isBypassed: ticket.order.isBypassed,
+        createdAt: ticket.order.createdAt,
+      },
+    }));
 
     res.json({ tickets: ticketsWithQr });
   } catch (err) {
@@ -56,7 +60,9 @@ export async function getMyOrders(req: AuthRequest, res: Response, next: NextFun
       where: { userId: req.user!.id },
       orderBy: { createdAt: 'desc' },
       include: {
-        ticketTier: { select: { name: true, price: true } },
+        ticketTier: {
+          include: { event: { select: { id: true, title: true, startTime: true } } },
+        },
         tickets: { select: { id: true, status: true } },
       },
     });

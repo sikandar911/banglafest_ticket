@@ -15,7 +15,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-04
 // POST /api/admin/events
 export async function createEvent(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { title, description, startTime, endTime, location } = req.body;
+    const { title, description, startTime, endTime, location, imageUrl } = req.body;
 
     const event = await prisma.event.create({
       data: {
@@ -24,6 +24,7 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
         startTime: new Date(startTime),
         endTime: new Date(endTime),
         location,
+        imageUrl: imageUrl || null,
         createdBy: req.user!.id,
       },
     });
@@ -38,7 +39,7 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
 export async function updateEvent(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const { title, description, startTime, endTime, location } = req.body;
+    const { title, description, startTime, endTime, location, imageUrl } = req.body;
 
     const existing = await prisma.event.findUnique({ where: { id } });
     if (!existing) {
@@ -54,6 +55,7 @@ export async function updateEvent(req: AuthRequest, res: Response, next: NextFun
         ...(startTime && { startTime: new Date(startTime) }),
         ...(endTime && { endTime: new Date(endTime) }),
         ...(location !== undefined && { location }),
+        ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
       },
     });
 

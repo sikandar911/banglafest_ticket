@@ -1,23 +1,37 @@
 import { useQuery } from '@tanstack/react-query';
-import { Download, QrCode } from 'lucide-react';
+import { Download, CheckCircle2, Clock, QrCode } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { userApi } from '../../api/user';
 import { PageSpinner } from '../../components/ui/Spinner';
 
+interface MyTicket {
+  id: string;
+  status: 'VALID' | 'CHECKED_IN' | 'CANCELLED';
+  scannedAt?: string;
+  createdAt: string;
+  qrCode: string;
+  event: { id: string; title: string; startTime: string; endTime: string; location?: string; imageUrl?: string };
+  tier: { name: string; price: number; description?: string; features?: string[] };
+  order: { id: string; status: string; totalAmount: number; isBypassed?: boolean };
+}
+
 export function MyTicketsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['my-tickets'],
     queryFn: () => userApi.getMyTickets().then((r) => r.data),
+    // Poll every 15s so status updates automatically after admin scans
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
   });
 
   const downloadPdf = async (ticketId: string) => {
     try {
       const res = await userApi.downloadTicketPdf(ticketId);
-      const url = window.URL.createObjectURL(new Blob([res.data as BlobPart]));
+      const url = window.URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ticket-${ticketId}.pdf`;
+      a.download = `banglafest-ticket-${ticketId.slice(0, 8)}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch {
@@ -26,83 +40,142 @@ export function MyTicketsPage() {
   };
 
   if (isLoading) return <PageSpinner />;
-  const tickets = data?.tickets ?? [];
+  const tickets = (data?.tickets ?? []) as MyTicket[];
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">My Tickets</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">My Tickets</h2>
+        <span className="text-xs text-gray-500">Updates automatically</span>
+      </div>
 
       {tickets.length === 0 ? (
-        <div className="card text-center py-12">
-          <QrCode className="w-12 h-12 mx-auto text-gray-600 mb-3" />
-          <p className="text-gray-400">No tickets yet. Browse events and get your tickets!</p>
+        <div className="card text-center py-16">
+          <QrCode className="w-14 h-14 mx-auto text-gray-700 mb-4" />
+          <p className="text-gray-400 font-medium">No tickets yet</p>
+          <p className="text-gray-600 text-sm mt-1">Browse events and purchase your tickets</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {tickets.map((ticket) => (
-            <div key={ticket.id} className="card flex flex-col gap-4">
-              {/* QR Code */}
-              {ticket.qrDataUrl && (
-                <div className="flex justify-center">
-                  <img
-                    src={ticket.qrDataUrl}
-                    alt="QR Code"
-                    className="w-36 h-36 rounded-lg bg-white p-1"
-                  />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-bold text-white text-lg">
-                    {ticket.order?.tier?.event?.title ?? 'Event'}
-                  </p>
-                  {ticket.order?.isBypassed && (
-                    <span className="badge bg-orange-900 text-orange-200 text-xs font-semibold">
-                      🔐 Admin Bypass
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-400">{ticket.order?.tier?.name}</p>
-                {ticket.order?.tier?.description && (
-                  <p className="text-xs text-gray-500 italic">{ticket.order?.tier?.description}</p>
-                )}
-                {ticket.order?.tier?.features && ticket.order?.tier?.features.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {ticket.order.tier.features.map((feature, idx) => (
-                      <span key={idx} className="badge badge-primary text-xs">
-                        {feature}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {ticket.order?.tier?.event?.startTime && (
-                  <p className="text-sm text-gray-500">
-                    {format(new Date(ticket.order.tier.event.startTime), 'MMM d, yyyy • h:mm a')}
-                  </p>
-                )}
-                <p className="text-sm text-gray-500">
-                  {ticket.order?.tier?.event?.location}
-                </p>
-              </div>
-
-              <div className="border-t border-gray-800 pt-3 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 font-mono">UUID</p>
-                  <p className="text-xs text-gray-400 font-mono truncate max-w-[160px]">{ticket.uuid}</p>
-                </div>
-                {ticket.scannedAt ? (
-                  <span className="text-xs text-green-400 font-medium">✓ Used</span>
-                ) : (
-                  <button onClick={() => downloadPdf(ticket.id)} className="btn-secondary py-1.5 text-xs">
-                    <Download className="w-3 h-3" /> PDF
-                  </button>
-                )}
-              </div>
-            </div>
+            <TicketCard key={ticket.id} ticket={ticket} onDownload={downloadPdf} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function TicketCard({ ticket, onDownload }: { ticket: MyTicket; onDownload: (id: string) => void }) {
+  const isCheckedIn = ticket.status === 'CHECKED_IN';
+  const isValid = ticket.status === 'VALID';
+
+  return (
+    <div className={`rounded-2xl overflow-hidden border ${isCheckedIn ? 'border-gray-700' : 'border-primary-800'} bg-gray-950 shadow-xl`}>
+
+      {/* Event image banner or gradient header */}
+      <div className="relative h-24 overflow-hidden">
+        {ticket.event.imageUrl ? (
+          <>
+            <img src={ticket.event.imageUrl} alt={ticket.event.title} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/70" />
+          </>
+        ) : (
+          <div className={`w-full h-full ${isCheckedIn ? 'bg-gradient-to-br from-gray-800 to-gray-900' : 'bg-gradient-to-br from-primary-900 to-gray-900'}`} />
+        )}
+
+        {/* Tier badge */}
+        <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold tracking-wide ${isCheckedIn ? 'bg-gray-700 text-gray-300' : 'bg-primary-500 text-white'}`}>
+          {ticket.tier.name.toUpperCase()}
+        </div>
+
+        {/* Status badge */}
+        <div className={`absolute bottom-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${isCheckedIn ? 'bg-green-900/80 text-green-300' : 'bg-gray-900/80 text-gray-200'}`}>
+          {isCheckedIn
+            ? <><CheckCircle2 className="w-3 h-3" /> CHECKED IN</>
+            : <><div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /> VALID</>
+          }
+        </div>
+
+        {ticket.order.isBypassed && (
+          <div className="absolute bottom-3 right-3 px-2 py-1 rounded-full bg-orange-900/80 text-orange-300 text-xs font-bold">
+            COMP
+          </div>
+        )}
+      </div>
+
+      {/* Dashed tear line */}
+      <div className="relative flex items-center px-4 py-0">
+        <div className="absolute -left-3 w-6 h-6 rounded-full bg-gray-900 border border-gray-800" />
+        <div className="flex-1 border-t-2 border-dashed border-gray-800 mx-3" />
+        <div className="absolute -right-3 w-6 h-6 rounded-full bg-gray-900 border border-gray-800" />
+      </div>
+
+      <div className="p-4 flex gap-4">
+        {/* QR Code */}
+        <div className="shrink-0">
+          <div className={`w-28 h-28 rounded-xl overflow-hidden p-1.5 ${isCheckedIn ? 'bg-gray-800' : 'bg-white'}`}>
+            <img
+              src={ticket.qrCode}
+              alt="QR Code"
+              className={`w-full h-full object-contain ${isCheckedIn ? 'opacity-30 grayscale' : ''}`}
+            />
+          </div>
+          {isCheckedIn && (
+            <div className="mt-1.5 text-center">
+              <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto" />
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <p className={`font-bold text-base leading-tight ${isCheckedIn ? 'text-gray-400' : 'text-white'}`}>
+            {ticket.event.title}
+          </p>
+
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Clock className="w-3 h-3 shrink-0" />
+            <span>{format(new Date(ticket.event.startTime), 'MMM d, yyyy · h:mm a')}</span>
+          </div>
+
+          {ticket.event.location && (
+            <p className="text-xs text-gray-600 truncate">{ticket.event.location}</p>
+          )}
+
+          {ticket.tier.features && ticket.tier.features.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {ticket.tier.features.map((f, i) => (
+                <span key={i} className="text-xs bg-primary-900/50 text-primary-400 px-2 py-0.5 rounded-full border border-primary-800">
+                  {f}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {isCheckedIn && ticket.scannedAt && (
+            <p className="text-xs text-green-600 font-medium">
+              ✓ Scanned {format(new Date(ticket.scannedAt), 'MMM d · h:mm a')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 pb-4 pt-1 flex items-center justify-between border-t border-gray-800/50 mt-1">
+        <p className="text-xs text-gray-700 font-mono truncate max-w-[160px]">{ticket.id.toUpperCase()}</p>
+        {isValid && (
+          <button
+            onClick={() => onDownload(ticket.id)}
+            className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 font-medium transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" /> Download PDF
+          </button>
+        )}
+        {isCheckedIn && (
+          <span className="text-xs text-gray-600">Entry complete</span>
+        )}
+      </div>
     </div>
   );
 }

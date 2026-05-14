@@ -1,6 +1,8 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
+import { sendTicketConfirmationEmail } from '../services/email.service';
+import { generateTicketPdf } from '../services/pdf.service';
 
 // POST /api/orders
 // Creates a PENDING order and reserves tickets using a Prisma transaction
@@ -61,6 +63,69 @@ export async function createOrder(req: AuthRequest, res: Response, next: NextFun
         return;
       }
     }
+    next(err);
+  }
+}
+
+// POST /api/orders/:id/confirm  (skip-payment / dev mode)
+export async function confirmOrder(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        ticketTier: { include: { event: true } },
+      },
+    });
+
+    if (!order) { res.status(404).json({ error: 'Order not found.' }); return; }
+    if (order.userId !== req.user!.id) { res.status(403).json({ error: 'Access denied.' }); return; }
+    if (order.status !== 'PENDING') { res.status(400).json({ error: 'Order is no longer pending.' }); return; }
+
+    const ticketData = Array.from({ length: order.quantity }).map(() => ({
+      orderId: order.id,
+      ticketTierId: order.tierId,
+      userId: order.userId,
+      status: 'VALID' as const,
+    }));
+
+    const tickets = await prisma.$transaction(async (tx) => {
+      const created = await Promise.all(ticketData.map((d) => tx.ticket.create({ data: d })));
+      await tx.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
+      return created;
+    });
+
+    const pdfBuffers = await Promise.all(
+      tickets.map((ticket) =>
+        generateTicketPdf({
+          ticketId: ticket.id,
+          userName: order.user.name,
+          userEmail: order.user.email,
+          eventTitle: order.ticketTier.event.title,
+          tierName: order.ticketTier.name,
+          eventDate: order.ticketTier.event.startTime,
+          location: order.ticketTier.event.location ?? '',
+          orderId: order.id,
+          createdAt: ticket.createdAt,
+        })
+      )
+    );
+
+    await sendTicketConfirmationEmail(
+      order.user.email,
+      order.user.name,
+      tickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
+      {
+        eventTitle: order.ticketTier.event.title,
+        tierName: order.ticketTier.name,
+        eventDate: order.ticketTier.event.startTime,
+      }
+    );
+
+    res.json({ orderId: order.id, message: 'Order confirmed.' });
+  } catch (err) {
     next(err);
   }
 }
