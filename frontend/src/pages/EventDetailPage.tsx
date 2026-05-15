@@ -169,7 +169,7 @@ export function EventDetailPage() {
                           )}
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-white">${Number(tier.price).toFixed(2)}</p>
+                          <p className="text-lg font-bold text-white">£{Number(tier.price).toFixed(2)}</p>
                           <AvailabilityBadge status={tier.availabilityStatus} />
                         </div>
                       </div>
@@ -241,7 +241,7 @@ export function EventDetailPage() {
                     return (
                       <div key={tierId} className="flex items-center justify-between text-gray-300 text-sm">
                         <span>{tier.name} × {qty}</span>
-                        <span>${subtotal.toFixed(2)}</span>
+                        <span>£{subtotal.toFixed(2)}</span>
                       </div>
                     );
                   })}
@@ -254,7 +254,7 @@ export function EventDetailPage() {
 
                 <div className="flex items-center justify-between mb-6">
                   <span className="text-white font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-primary-400">${totalPrice.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-primary-400">£{totalPrice.toFixed(2)}</span>
                 </div>
 
                 <button

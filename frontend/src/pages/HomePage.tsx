@@ -99,7 +99,7 @@ export function HomePage() {
 
                   <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">
                     <span className="text-white font-semibold">
-                      {minPrice !== null ? `From $${minPrice.toFixed(2)}` : event.ticketTiers.length === 0 ? 'Tickets TBA' : 'Free'}
+                      {minPrice !== null ? `From £${minPrice.toFixed(2)}` : event.ticketTiers.length === 0 ? 'Tickets TBA' : 'Free'}
                     </span>
                     {event.ticketTiers.length === 0 ? (
                       <span className="text-xs text-gray-500 font-medium">Coming Soon</span>

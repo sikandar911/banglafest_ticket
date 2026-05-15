@@ -50,7 +50,7 @@ export async function createPaymentIntent(
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(Number(order.totalAmount) * 100),
-      currency: 'usd',
+      currency: 'gbp',
       metadata: { orderId: order.id },
       description: `${order.ticketTier.event.title} — ${order.ticketTier.name} × ${order.quantity}`,
       receipt_email: order.user.email,

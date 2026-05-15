@@ -110,8 +110,8 @@ export function CheckoutPage() {
               <p className="text-gray-400 text-sm mt-0.5">{state.tierName} × {state.quantity}</p>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-2xl font-bold text-white">${state.totalAmount.toFixed(2)}</p>
-              <p className="text-xs text-gray-500 mt-0.5">USD</p>
+              <p className="text-2xl font-bold text-white">£{state.totalAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-500 mt-0.5">GBP</p>
             </div>
           </div>
         </div>
@@ -213,7 +213,7 @@ function PaymentForm({ orderId, amount }: { orderId: string; amount: number }) {
         ) : (
           <>
             <Lock className="w-4 h-4" />
-            Pay ${amount.toFixed(2)}
+            Pay £{amount.toFixed(2)}
           </>
         )}
       </button>

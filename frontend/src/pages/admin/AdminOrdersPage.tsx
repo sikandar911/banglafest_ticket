@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Lock, Search, ChevronDown } from 'lucide-react';
+import { Lock, Search, ChevronDown, AlertTriangle, X } from 'lucide-react';
 import { adminApi } from '../../api/admin';
 import { eventsApi } from '../../api/events';
 import { PageSpinner } from '../../components/ui/Spinner';
@@ -15,6 +15,7 @@ export function AdminOrdersPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const [showBypassForm, setShowBypassForm] = useState(false);
+  const [refundTarget, setRefundTarget] = useState<{ id: string; name: string; amount: number; event: string } | null>(null);
 
   // Bypass form state
   const [userSearch, setUserSearch] = useState('');
@@ -52,12 +53,18 @@ export function AdminOrdersPage() {
 
   const refundMutation = useMutation({
     mutationFn: (orderId: string) => adminApi.refundOrder(orderId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-orders'] }); toast.success('Order refunded'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      toast.success('Order refunded — inventory restored');
+      setRefundTarget(null);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Refund failed'),
   });
 
   const resendMutation = useMutation({
     mutationFn: (orderId: string) => adminApi.resendTicket(orderId),
     onSuccess: () => toast.success('Ticket email resent'),
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Resend failed'),
   });
 
   const bypassMutation = useMutation({
@@ -196,7 +203,7 @@ export function AdminOrdersPage() {
                   <option value="">Select tier…</option>
                   {tiers.map((t: any) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} — ${Number(t.price).toFixed(2)} ({t.availableQty} left)
+                      {t.name} — £{Number(t.price).toFixed(2)} ({t.availableQty} left)
                     </option>
                   ))}
                 </select>
@@ -255,13 +262,25 @@ export function AdminOrdersPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <p className="font-bold text-white">${Number(order.totalAmount).toFixed(2)}</p>
+                <p className="font-bold text-white">£{Number(order.totalAmount).toFixed(2)}</p>
                 {order.status === 'PAID' && !order.isBypassed && (
                   <>
-                    <button className="btn-secondary py-1.5 text-xs" onClick={() => resendMutation.mutate(order.id)} disabled={resendMutation.isPending}>
+                    <button
+                      className="btn-secondary py-1.5 text-xs"
+                      onClick={() => resendMutation.mutate(order.id)}
+                      disabled={resendMutation.isPending}
+                    >
                       Resend
                     </button>
-                    <button className="btn-danger py-1.5 text-xs" onClick={() => { if (confirm('Refund this order?')) refundMutation.mutate(order.id); }} disabled={refundMutation.isPending}>
+                    <button
+                      className="btn-danger py-1.5 text-xs"
+                      onClick={() => setRefundTarget({
+                        id: order.id,
+                        name: order.user?.name ?? 'Unknown',
+                        amount: Number(order.totalAmount),
+                        event: order.ticketTier?.name ?? '',
+                      })}
+                    >
                       Refund
                     </button>
                   </>
@@ -277,6 +296,72 @@ export function AdminOrdersPage() {
           <button className="btn-secondary text-sm py-1.5" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
           <span className="text-gray-400 text-sm">Page {page} of {totalPages}</span>
           <button className="btn-secondary text-sm py-1.5" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</button>
+        </div>
+      )}
+
+      {/* ── Refund Confirmation Modal ─────────────────────────── */}
+      {refundTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-900/50 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Confirm Refund</h3>
+                  <p className="text-xs text-gray-500">This action cannot be undone</p>
+                </div>
+              </div>
+              <button onClick={() => setRefundTarget(null)} className="text-gray-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-gray-800 rounded-xl p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Customer</span>
+                <span className="text-white font-medium">{refundTarget.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Ticket</span>
+                <span className="text-white">{refundTarget.event}</span>
+              </div>
+              <div className="flex justify-between border-t border-gray-700 pt-2 mt-2">
+                <span className="text-gray-400">Refund amount</span>
+                <span className="text-red-400 font-bold text-base">£{refundTarget.amount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-400">
+              The customer will receive a full refund to their original payment method. All associated tickets will be cancelled and seats restored.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                className="flex-1 btn-danger py-2.5 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+                onClick={() => refundMutation.mutate(refundTarget.id)}
+                disabled={refundMutation.isPending}
+              >
+                {refundMutation.isPending ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Processing…
+                  </>
+                ) : 'Issue Refund'}
+              </button>
+              <button
+                className="flex-1 btn-secondary py-2.5"
+                onClick={() => setRefundTarget(null)}
+                disabled={refundMutation.isPending}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

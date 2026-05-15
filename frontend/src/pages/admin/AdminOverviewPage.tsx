@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, ShoppingBag, Users, TrendingUp } from 'lucide-react';
+import { PoundSterling, ShoppingBag, Users, TrendingUp } from 'lucide-react';
 import { adminApi } from '../../api/admin';
 import { PageSpinner } from '../../components/ui/Spinner';
 
@@ -24,14 +24,14 @@ export function AdminOverviewPage() {
   const stats = [
     {
       label: 'Total Revenue',
-      value: `$${(rev?.totalRevenue ?? 0).toFixed(2)}`,
-      icon: DollarSign,
+      value: `£${(rev?.totalRevenue ?? 0).toFixed(2)}`,
+      icon: PoundSterling,
       color: 'text-green-400',
       bg: 'bg-green-900/30',
     },
     {
       label: 'Net Revenue',
-      value: `$${(rev?.netRevenue ?? 0).toFixed(2)}`,
+      value: `£${(rev?.netRevenue ?? 0).toFixed(2)}`,
       icon: TrendingUp,
       color: 'text-blue-400',
       bg: 'bg-blue-900/30',

@@ -14,6 +14,7 @@ import {
   listOrders,
   refundOrder,
   resendTicket,
+  resendOrderTickets,
   bypassBookTicket,
   updateUserRole,
 } from '../controllers/admin.controller';
@@ -270,6 +271,7 @@ router.get(
  *         description: Order refunded
  */
 router.post('/orders/:id/refund', refundOrder);
+router.post('/orders/:id/resend-ticket', resendOrderTickets);
 
 /**
  * @swagger

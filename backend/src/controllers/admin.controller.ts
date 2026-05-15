@@ -281,20 +281,35 @@ export async function refundOrder(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    if (!order.stripePaymentIntent) {
-      res.status(400).json({ error: 'No payment intent found for this order.' });
-      return;
+    // Issue Stripe refund only if a payment was actually captured
+    let stripeRefunded = false;
+    if (order.stripePaymentIntent) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(order.stripePaymentIntent);
+        if (pi.status === 'succeeded') {
+          await stripe.refunds.create({ payment_intent: order.stripePaymentIntent });
+          stripeRefunded = true;
+        }
+        // If status is anything else (requires_payment_method, processing, etc.)
+        // no real charge was captured — skip Stripe refund, just update DB
+      } catch (stripeErr: any) {
+        // Surface Stripe errors for genuinely captured payments
+        if (stripeErr?.code !== 'resource_missing') {
+          throw stripeErr;
+        }
+      }
     }
 
-    // Issue refund via Stripe
-    await stripe.refunds.create({ payment_intent: order.stripePaymentIntent });
-
-    // Update DB — cancel all tickets and mark order REFUNDED
+    // Cancel tickets, restore inventory, mark order REFUNDED
     await prisma.$transaction([
       prisma.order.update({ where: { id }, data: { status: 'REFUNDED' } }),
       prisma.ticket.updateMany({
         where: { orderId: id },
         data: { status: 'CANCELLED' },
+      }),
+      prisma.ticketTier.update({
+        where: { id: order.ticketTier.id },
+        data: { availableQty: { increment: order.quantity } },
       }),
     ]);
 
@@ -306,7 +321,11 @@ export async function refundOrder(req: Request, res: Response, next: NextFunctio
       quantity: order.quantity,
     });
 
-    res.json({ message: 'Order refunded and tickets cancelled successfully.' });
+    res.json({
+      message: stripeRefunded
+        ? 'Order refunded via Stripe and tickets cancelled.'
+        : 'Order marked as refunded and tickets cancelled.',
+    });
   } catch (err) {
     next(err);
   }
@@ -359,6 +378,62 @@ export async function resendTicket(req: Request, res: Response, next: NextFuncti
     );
 
     res.json({ message: 'Ticket resent successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/admin/orders/:id/resend-ticket — resend all tickets for an order
+export async function resendOrderTickets(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        tickets: true,
+        user: { select: { name: true, email: true } },
+        ticketTier: { include: { event: true } },
+      },
+    });
+
+    if (!order) { res.status(404).json({ error: 'Order not found.' }); return; }
+    if (order.status !== 'PAID') { res.status(400).json({ error: 'Can only resend tickets for PAID orders.' }); return; }
+
+    const activeTickets = order.tickets.filter((t) => t.status !== 'CANCELLED');
+    if (activeTickets.length === 0) {
+      res.status(400).json({ error: 'No active tickets found for this order.' });
+      return;
+    }
+
+    const pdfBuffers = await Promise.all(
+      activeTickets.map((ticket) =>
+        generateTicketPdf({
+          ticketId: ticket.id,
+          userName: order.user.name,
+          userEmail: order.user.email,
+          eventTitle: order.ticketTier.event.title,
+          tierName: order.ticketTier.name,
+          eventDate: order.ticketTier.event.startTime,
+          location: order.ticketTier.event.location ?? '',
+          orderId: order.id,
+          createdAt: ticket.createdAt,
+        })
+      )
+    );
+
+    await sendTicketConfirmationEmail(
+      order.user.email,
+      order.user.name,
+      activeTickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
+      {
+        eventTitle: order.ticketTier.event.title,
+        tierName: order.ticketTier.name,
+        eventDate: order.ticketTier.event.startTime,
+      }
+    );
+
+    res.json({ message: `${activeTickets.length} ticket(s) resent successfully.` });
   } catch (err) {
     next(err);
   }
