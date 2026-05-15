@@ -82,6 +82,8 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
 
     if (!order) { res.status(404).json({ error: 'Order not found.' }); return; }
     if (order.userId !== req.user!.id) { res.status(403).json({ error: 'Access denied.' }); return; }
+    // Idempotent: already paid means frontend beat the webhook or double-submit
+    if (order.status === 'PAID') { res.json({ orderId: order.id, message: 'Order already confirmed.' }); return; }
     if (order.status !== 'PENDING') { res.status(400).json({ error: 'Order is no longer pending.' }); return; }
 
     const ticketData = Array.from({ length: order.quantity }).map(() => ({

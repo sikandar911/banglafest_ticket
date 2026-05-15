@@ -60,15 +60,22 @@ export function EventDetailPage() {
     }
 
     const [[tierId, quantity]] = Object.entries(selectedTiers);
+    const tier = event.ticketTiers.find((t: any) => t.id === tierId);
 
     setIsCheckingOut(true);
     try {
       const { data: orderData } = await ordersApi.create({ tierId, quantity });
-      await ordersApi.confirm(orderData.orderId);
-      navigate(`/checkout/success?orderId=${orderData.orderId}`);
+      navigate('/checkout', {
+        state: {
+          orderId: orderData.orderId,
+          totalAmount: orderData.totalAmount,
+          tierName: tier?.name ?? '',
+          eventTitle: event.title,
+          quantity,
+        },
+      });
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to confirm booking");
-    } finally {
+      toast.error(err.response?.data?.error || "Failed to create order");
       setIsCheckingOut(false);
     }
   };
@@ -258,8 +265,8 @@ export function EventDetailPage() {
                   {isCheckingOut 
                     ? "Processing..." 
                     : isAuthenticated
-                    ? "Confirm Booking"
-                    : "Login to Book Tickets"}
+                    ? "Proceed to Payment"
+                    : "Login to Buy Tickets"}
                 </button>
               </>
             ) : (

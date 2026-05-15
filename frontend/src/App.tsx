@@ -13,6 +13,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { CheckoutPage } from './pages/CheckoutPage';
 import { CheckoutSuccessPage } from './pages/CheckoutSuccessPage';
 import { CheckoutCancelPage } from './pages/CheckoutCancelPage';
 
@@ -60,6 +61,11 @@ export default function App() {
               <Route path="reset-password" element={<ResetPasswordPage />} />
               <Route path="checkout/success" element={<CheckoutSuccessPage />} />
               <Route path="checkout/cancel" element={<CheckoutCancelPage />} />
+
+              {/* Embedded checkout — requires login */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="checkout" element={<CheckoutPage />} />
+              </Route>
 
               {/* User dashboard – requires login */}
               <Route element={<ProtectedRoute />}>
