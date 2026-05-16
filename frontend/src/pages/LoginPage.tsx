@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Ticket } from 'lucide-react';
+import { Ticket, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { Spinner } from '../components/ui/Spinner';
@@ -12,17 +12,23 @@ export function LoginPage() {
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
   const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(''); // Clear previous errors
     try {
       await login(form.email, form.password);
       toast.success('Welcome back!');
       navigate(from, { replace: true });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
-      toast.error(error?.response?.data?.error || 'Login failed');
+      setError(error?.response?.data?.error || 'Login failed');
     }
+  };
+
+  const handlePasswordChange = () => {
+    setError(''); // Clear error when user starts typing password
   };
 
   return (
@@ -58,12 +64,21 @@ export function LoginPage() {
               </div>
               <input
                 type="password"
-                className="input"
+                className={`input ${error ? 'border-red-500' : ''}`}
                 placeholder="••••••••"
                 value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, password: e.target.value });
+                  handlePasswordChange();
+                }}
                 required
               />
+              {error && (
+                <div className="flex items-center gap-2 mt-2 text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{error}</span>
+                </div>
+              )}
             </div>
             <button type="submit" className="btn-primary w-full" disabled={isLoading}>
               {isLoading ? <Spinner className="w-4 h-4" /> : 'Sign In'}

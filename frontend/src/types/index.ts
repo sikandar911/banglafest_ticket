@@ -100,19 +100,21 @@ export interface AdminUser {
 }
 
 // ─── Scanner ──────────────────────────────────────────────────────────────────
-export type ScanResult = 'VALID' | 'ALREADY_USED' | 'CANCELLED' | 'NOT_FOUND';
-
 export interface ScanResponse {
-  result: ScanResult;
+  valid: boolean;
+  reason: 'VALID' | 'ALREADY_USED' | 'CANCELLED' | 'INVALID_TICKET';
   message: string;
   ticket?: {
-    id: string;
-    uuid: string;
-    holderName?: string;
-    event: string;
-    tier: string;
+    id?: string;
+    holder?: string;
+    email?: string;
+    tier?: string;
+    event?: string;
     isBypassed?: boolean;
     scannedAt?: string;
+    checkedInAt?: string;
+    eventDate?: string;
+    location?: string;
   };
 }
 

@@ -289,3 +289,16 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     next(err);
   }
 }
+
+// ─── Check Email Availability ────────────────────────────────────────────────
+
+export async function checkEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    res.json({ available: !user });
+  } catch (err) {
+    next(err);
+  }
+}

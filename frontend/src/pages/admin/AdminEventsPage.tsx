@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, X, Save } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { adminApi } from "../../api/admin";
@@ -52,6 +52,8 @@ export function AdminEventsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [tierForms, setTierForms] = useState<Record<string, TierForm>>({});
   const [currentFeature, setCurrentFeature] = useState("");
+  const [editingTierId, setEditingTierId] = useState<string | null>(null);
+  const [editingTierForm, setEditingTierForm] = useState<TierForm>(emptyTier);
 
   const { data, isLoading } = useQuery({
     queryKey: ["events"],
@@ -102,6 +104,23 @@ export function AdminEventsPage() {
     },
   });
 
+  const updateTierMutation = useMutation({
+    mutationFn: ({ tierId, data }: { tierId: string; data: TierForm }) =>
+      adminApi.updateTier(tierId, {
+        name: data.name,
+        description: data.description || undefined,
+        price: parseFloat(data.price),
+        totalCapacity: parseInt(data.totalCapacity),
+        features: data.features,
+        maxPerPerson: parseInt(data.maxPerPerson),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      toast.success("Tier updated");
+      closeTierModal();
+    },
+  });
+
   const handleSaveEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventForm.title || !eventForm.startTime || !eventForm.endTime) {
@@ -131,6 +150,25 @@ export function AdminEventsPage() {
       imageUrl: event.imageUrl || "",
     });
     setShowEventForm(true);
+  };
+
+  const openEditTier = (tier: any) => {
+    setEditingTierId(tier.id);
+    setEditingTierForm({
+      name: tier.name,
+      price: tier.price.toString(),
+      totalCapacity: tier.totalCapacity.toString(),
+      description: tier.description || "",
+      features: [...(tier.features || [])],
+      maxPerPerson: tier.maxPerPerson.toString(),
+    });
+    setCurrentFeature("");
+  };
+
+  const closeTierModal = () => {
+    setEditingTierId(null);
+    setEditingTierForm(emptyTier);
+    setCurrentFeature("");
   };
 
   const addFeature = (eventId: string) => {
@@ -315,13 +353,22 @@ export function AdminEventsPage() {
                         {event.ticketTiers.map((tier: any) => (
                           <div key={tier.id} className="bg-gray-800 rounded-lg p-3 text-sm space-y-2">
                             <div className="flex items-center justify-between">
-                              <div>
+                              <div className="flex-1">
                                 <span className="text-white font-medium">{tier.name}</span>
                                 {tier.description && (
                                   <p className="text-gray-400 text-xs mt-1">{tier.description}</p>
                                 )}
                               </div>
-                              <span className="text-gray-400">${tier.price}</span>
+                              <div className="flex items-center gap-2 ml-4">
+                                <span className="text-gray-400">${tier.price}</span>
+                                <button 
+                                  className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white"
+                                  onClick={() => openEditTier(tier)}
+                                  title="Edit tier"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
                               <div>Availability: {tier.availableQty}/{tier.totalCapacity}</div>
@@ -475,6 +522,164 @@ export function AdminEventsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Edit Tier Modal */}
+      {editingTierId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) closeTierModal(); }}
+        >
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-800">
+              <h3 className="font-semibold text-white text-lg">Edit Ticket Tier</h3>
+              <button
+                onClick={closeTierModal}
+                className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label text-xs">Name *</label>
+                  <input
+                    className="input"
+                    placeholder="e.g., Standard"
+                    value={editingTierForm.name}
+                    onChange={(e) => setEditingTierForm({ ...editingTierForm, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">Price (£) *</label>
+                  <input
+                    className="input"
+                    placeholder="0.00"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={editingTierForm.price}
+                    onChange={(e) => setEditingTierForm({ ...editingTierForm, price: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">Total Capacity *</label>
+                  <input
+                    className="input"
+                    placeholder="100"
+                    type="number"
+                    min="1"
+                    value={editingTierForm.totalCapacity}
+                    onChange={(e) => setEditingTierForm({ ...editingTierForm, totalCapacity: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">Max per Person</label>
+                  <input
+                    className="input"
+                    placeholder="1"
+                    type="number"
+                    min="1"
+                    value={editingTierForm.maxPerPerson}
+                    onChange={(e) => setEditingTierForm({ ...editingTierForm, maxPerPerson: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label text-xs">Description (Optional)</label>
+                <textarea
+                  className="input"
+                  placeholder="e.g., Includes VIP access"
+                  rows={2}
+                  value={editingTierForm.description}
+                  onChange={(e) => setEditingTierForm({ ...editingTierForm, description: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="label text-xs mb-2">Features (Optional)</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    className="input flex-1"
+                    placeholder="e.g., VIP Access"
+                    value={currentFeature}
+                    onChange={(e) => setCurrentFeature(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (currentFeature.trim()) {
+                          setEditingTierForm({ ...editingTierForm, features: [...editingTierForm.features, currentFeature.trim()] });
+                          setCurrentFeature("");
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary px-3"
+                    onClick={() => {
+                      if (currentFeature.trim()) {
+                        setEditingTierForm({ ...editingTierForm, features: [...editingTierForm.features, currentFeature.trim()] });
+                        setCurrentFeature("");
+                      }
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                {editingTierForm.features.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {editingTierForm.features.map((feature, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-primary-700 text-primary-100 px-3 py-1 rounded text-sm flex items-center gap-2"
+                      >
+                        {feature}
+                        <button
+                          type="button"
+                          onClick={() => setEditingTierForm({
+                            ...editingTierForm,
+                            features: editingTierForm.features.filter((_, i) => i !== idx)
+                          })}
+                          className="hover:text-white"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 p-5 border-t border-gray-800">
+              <button
+                type="button"
+                className="btn-primary flex-1"
+                onClick={() => updateTierMutation.mutate({ tierId: editingTierId, data: editingTierForm })}
+                disabled={updateTierMutation.isPending || !editingTierForm.name || !editingTierForm.price || !editingTierForm.totalCapacity}
+              >
+                {updateTierMutation.isPending ? (
+                  <span className="flex items-center justify-center gap-2">Saving...</span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Save className="w-4 h-4" /> Save Changes
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={closeTierModal}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

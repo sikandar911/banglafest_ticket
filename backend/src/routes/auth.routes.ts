@@ -11,6 +11,7 @@ import {
   logout,
   forgotPassword,
   resetPassword,
+  checkEmail,
 } from '../controllers/auth.controller';
 
 const router = Router();
@@ -548,6 +549,46 @@ router.post(
   ],
   validate,
   resetPassword
+);
+
+/**
+ * @swagger
+ * /api/auth/check-email:
+ *   post:
+ *     summary: Check if email is available
+ *     description: Check if an email address is already registered
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email to check
+ *                 example: john@example.com
+ *     responses:
+ *       200:
+ *         description: Email availability status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 available:
+ *                   type: boolean
+ *                   example: true
+ */
+router.post(
+  '/check-email',
+  [body('email').isEmail().normalizeEmail()],
+  validate,
+  checkEmail
 );
 
 export default router;

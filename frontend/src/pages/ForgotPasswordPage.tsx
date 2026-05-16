@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ticket } from 'lucide-react';
-// toast used inside mutation onSuccess
+import { Ticket, Mail } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { authApi } from '../api/auth';
 import { Spinner } from '../components/ui/Spinner';
 
@@ -16,6 +16,22 @@ export function ForgotPasswordPage() {
     try {
       await authApi.forgotPassword(email);
       setSent(true);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error(error?.response?.data?.error || 'Failed to send reset link');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setIsLoading(true);
+    try {
+      await authApi.forgotPassword(email);
+      toast.success('Reset link resent!');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error(error?.response?.data?.error || 'Failed to resend reset link');
     } finally {
       setIsLoading(false);
     }
@@ -34,14 +50,36 @@ export function ForgotPasswordPage() {
 
         <div className="card">
           {sent ? (
-            <div className="text-center py-4">
-              <p className="text-green-400 font-medium">Reset link sent!</p>
-              <p className="text-gray-400 text-sm mt-2">Check your inbox and follow the link to reset your password.</p>
+            <div className="text-center space-y-4">
+              <div className="flex justify-center mb-4">
+                <Mail className="w-12 h-12 text-primary-400" />
+              </div>
+              <div>
+                <p className="text-white font-medium">Check your email</p>
+                <p className="text-gray-400 text-sm mt-1">We've sent a password reset link to:</p>
+                <p className="text-primary-400 font-medium mt-2">{email}</p>
+              </div>
+              <div className="bg-blue-900/20 border border-blue-500/30 rounded p-3 text-sm text-blue-300">
+                <p>The reset link will expire in <strong>1 hour</strong></p>
+              </div>
+              <button
+                onClick={handleResend}
+                disabled={isLoading}
+                className="text-sm text-primary-400 hover:text-primary-300 font-medium"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner className="w-4 h-4" /> Resending...
+                  </span>
+                ) : (
+                  'Didn\'t receive it? Resend'
+                )}
+              </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Email</label>
+                <label className="label">Email Address</label>
                 <input
                   type="email"
                   className="input"

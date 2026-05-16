@@ -97,6 +97,118 @@ async function seed() {
       console.log(`   ID: ${user.id}`);
     }
 
+    // Create test event
+    const eventTitle = 'Banglafest 2026';
+    const existingEvent = await prisma.event.findFirst({
+      where: { title: eventTitle },
+    });
+
+    let testEvent;
+    if (existingEvent) {
+      testEvent = existingEvent;
+      console.log(`✅ Event already exists: ${eventTitle}`);
+    } else {
+      testEvent = await prisma.event.create({
+        data: {
+          title: eventTitle,
+          description: 'The Ultimate Bengali Cultural Festival',
+          startTime: new Date('2026-07-15T10:00:00Z'),
+          endTime: new Date('2026-07-15T22:00:00Z'),
+          location: 'Central Park, NYC',
+          createdBy: (await prisma.user.findUnique({ where: { email: 'admin@banglafest.com' } }))?.id,
+        },
+      });
+      console.log(`✅ Event created: ${eventTitle}`);
+    }
+
+    // Create ticket tiers
+    const tierNames = ['General Admission', 'VIP', 'Premium'];
+    const tierPrices = [25, 75, 150];
+    
+    for (let i = 0; i < tierNames.length; i++) {
+      const existingTier = await prisma.ticketTier.findFirst({
+        where: {
+          eventId: testEvent.id,
+          name: tierNames[i],
+        },
+      });
+
+      if (!existingTier) {
+        await prisma.ticketTier.create({
+          data: {
+            eventId: testEvent.id,
+            name: tierNames[i],
+            description: `${tierNames[i]} access to ${eventTitle}`,
+            price: tierPrices[i],
+            totalCapacity: 500,
+            availableQty: 500,
+            maxPerPerson: 10,
+            features: JSON.stringify(
+              tierNames[i] === 'Premium'
+                ? ['Front row seating', 'VIP lounge access', 'Meet & greet']
+                : tierNames[i] === 'VIP'
+                ? ['Priority entry', 'VIP lounge access']
+                : ['General entry']
+            ),
+          },
+        });
+        console.log(`✅ Ticket tier created: ${tierNames[i]}`);
+      }
+    }
+
+    // Create test order and tickets for the test user
+    const testUser = await prisma.user.findUnique({
+      where: { email: 'user@banglafest.com' },
+    });
+
+    if (testUser) {
+      const gaaTier = await prisma.ticketTier.findFirst({
+        where: {
+          eventId: testEvent.id,
+          name: 'General Admission',
+        },
+      });
+
+      if (gaaTier) {
+        // Check if order already exists
+        const existingOrder = await prisma.order.findFirst({
+          where: {
+            userId: testUser.id,
+            tierId: gaaTier.id,
+          },
+        });
+
+        if (!existingOrder) {
+          const order = await prisma.order.create({
+            data: {
+              userId: testUser.id,
+              tierId: gaaTier.id,
+              quantity: 2,
+              totalAmount: 50,
+              status: 'PAID',
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+            },
+          });
+
+          // Create the test ticket with your specific UUID
+          const testTicket = await prisma.ticket.create({
+            data: {
+              id: '6B9F0DAF-8396-4981-9EFD-470A01693455', // Your test UUID
+              orderId: order.id,
+              ticketTierId: gaaTier.id,
+              userId: testUser.id,
+              status: 'VALID',
+            },
+          });
+
+          console.log(`✅ Test order created for user@banglafest.com`);
+          console.log(`   Ticket UUID: ${testTicket.id}`);
+          console.log(`   Ticket Tier: General Admission`);
+          console.log(`   Event: ${eventTitle}`);
+        }
+      }
+    }
+
     console.log('\n🎉 Database seeding completed!');
     console.log('\n📝 Login Credentials Summary:');
     console.log('───────────────────────────────────');

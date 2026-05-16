@@ -102,38 +102,43 @@ export async function searchTickets(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const users = await prisma.user.findMany({
+    // Query orders with PAID status or bypassed, then get tickets from those orders
+    const orders = await prisma.order.findMany({
       where: {
+        // Only PAID orders or bypassed orders
         OR: [
-          { email: { contains: q.trim(), mode: 'insensitive' } },
-          { name: { contains: q.trim(), mode: 'insensitive' } },
+          { status: 'PAID' },
+          { isBypassed: true },
         ],
+        // AND user must match search query
+        user: {
+          OR: [
+            { email: { contains: q.trim(), mode: 'insensitive' } },
+            { name: { contains: q.trim(), mode: 'insensitive' } },
+          ],
+        },
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
+      include: {
+        user: { select: { name: true, email: true } },
         tickets: {
           where: { status: { not: 'CANCELLED' } },
-          include: {
-            order: { select: { isBypassed: true } },
-            ticketTier: {
-              include: { event: { select: { title: true, startTime: true } } },
-            },
-          },
+        },
+        ticketTier: {
+          include: { event: { select: { title: true, startTime: true } } },
         },
       },
     });
 
-    const results = users.flatMap((user) =>
-      user.tickets.map((ticket) => ({
+    // Flatten results: each ticket becomes a result object
+    const results = orders.flatMap((order) =>
+      order.tickets.map((ticket) => ({
         ticketId: ticket.id,
-        holder: user.name,
-        email: user.email,
-        tier: ticket.ticketTier.name,
-        event: ticket.ticketTier.event.title,
-        eventDate: ticket.ticketTier.event.startTime,
-        isBypassed: ticket.order?.isBypassed,
+        holder: order.user.name,
+        email: order.user.email,
+        tier: order.ticketTier.name,
+        event: order.ticketTier.event.title,
+        eventDate: order.ticketTier.event.startTime,
+        isBypassed: order.isBypassed,
         status: ticket.status,
         scannedAt: ticket.scannedAt,
       }))

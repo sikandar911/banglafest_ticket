@@ -3,37 +3,10 @@ import { useMutation } from '@tanstack/react-query';
 import { Camera, CameraOff, Search, X, CheckCircle2, XCircle, AlertTriangle, Keyboard } from 'lucide-react';
 import { format } from 'date-fns';
 import jsQR from 'jsqr';
-import { scannerApi } from '../../api/scanner';
+import { scannerApi, SearchResult } from '../../api/scanner';
+import type { ScanResponse } from '../../types';
 
-type ScanResult = {
-  valid: boolean;
-  reason: 'VALID' | 'ALREADY_USED' | 'CANCELLED' | 'INVALID_TICKET';
-  message: string;
-  ticket?: {
-    id?: string;
-    holder?: string;
-    email?: string;
-    tier?: string;
-    event?: string;
-    isBypassed?: boolean;
-    scannedAt?: string;
-    checkedInAt?: string;
-    eventDate?: string;
-    location?: string;
-  };
-};
-
-type SearchResult = {
-  ticketId: string;
-  holder: string;
-  email: string;
-  tier: string;
-  event: string;
-  eventDate: string;
-  isBypassed?: boolean;
-  status: 'VALID' | 'CHECKED_IN' | 'CANCELLED';
-  scannedAt?: string;
-};
+type ScanResult = ScanResponse;
 
 export function ScannerPage() {
   const [mode, setMode] = useState<'camera' | 'manual'>('camera');

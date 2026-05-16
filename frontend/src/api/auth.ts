@@ -22,4 +22,7 @@ export const authApi = {
 
   resetPassword: (data: { token: string; newPassword: string }) =>
     api.post<{ message: string }>('/api/auth/reset-password', data),
+
+  checkEmail: (email: string) =>
+    api.post<{ available: boolean }>('/api/auth/check-email', { email }),
 };
