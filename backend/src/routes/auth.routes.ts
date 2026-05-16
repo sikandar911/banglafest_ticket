@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
+import rateLimit from 'express-rate-limit';
 import { validate } from '../middleware/validate';
 import {
   register,
@@ -13,6 +14,24 @@ import {
 } from '../controllers/auth.controller';
 
 const router = Router();
+
+// Strict limit for login — 10 attempts per 15 min per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// OTP endpoints — 5 requests per 30 min per IP (prevents OTP spam)
+const otpLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many requests. Please try again in 30 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * @swagger
@@ -217,6 +236,7 @@ router.post(
  */
 router.post(
   '/resend-otp',
+  otpLimiter,
   [body('email').isEmail().normalizeEmail()],
   validate,
   resendOtp
@@ -306,6 +326,7 @@ router.post(
  */
 router.post(
   '/login',
+  loginLimiter,
   [
     body('email').isEmail().normalizeEmail(),
     body('password').trim().notEmpty(),
@@ -452,6 +473,7 @@ router.post(
  */
 router.post(
   '/forgot-password',
+  otpLimiter,
   [body('email').isEmail().normalizeEmail()],
   validate,
   forgotPassword

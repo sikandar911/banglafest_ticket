@@ -175,16 +175,22 @@ async function fulfillOrder(
   }));
 
   const tickets = await prisma.$transaction(async (tx) => {
-    const created = await Promise.all(ticketData.map((d) => tx.ticket.create({ data: d })));
-    await tx.order.update({
-      where: { id: order!.id },
+    // Atomic PENDING → PAID transition prevents duplicate ticket creation
+    // when both the webhook and the frontend confirmOrder fire concurrently
+    const transitioned = await tx.order.updateMany({
+      where: { id: order!.id, status: 'PENDING' },
       data: {
         status: 'PAID',
         ...(paymentIntentId && { stripePaymentIntent: paymentIntentId }),
       },
     });
+    if (transitioned.count === 0) return null; // already fulfilled — skip
+
+    const created = await Promise.all(ticketData.map((d) => tx.ticket.create({ data: d })));
     return created;
   });
+
+  if (!tickets) return; // idempotent — already processed
 
   const pdfBuffers = await Promise.all(
     tickets.map((ticket) =>

@@ -15,11 +15,20 @@ export interface TicketPdfData {
 export async function generateTicketPdf(data: TicketPdfData): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
     try {
-      // Fetch QR code from external API — no package
+      // Fetch QR code from external API with timeout + 3 retries
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(data.ticketId)}&ecc=H&margin=6`;
-      const qrResponse = await fetch(qrUrl);
-      if (!qrResponse.ok) throw new Error('QR API request failed');
-      const qrBuffer = Buffer.from(await qrResponse.arrayBuffer());
+      let qrBuffer: Buffer | null = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const qrResponse = await fetch(qrUrl, { signal: AbortSignal.timeout(5000) });
+          if (!qrResponse.ok) throw new Error(`QR API returned ${qrResponse.status}`);
+          qrBuffer = Buffer.from(await qrResponse.arrayBuffer());
+          break;
+        } catch (err) {
+          if (attempt === 3) throw new Error(`QR code fetch failed after 3 attempts: ${err}`);
+          await new Promise((r) => setTimeout(r, 1000 * attempt));
+        }
+      }
 
       const W = 420;
       const H = 595;
@@ -126,7 +135,7 @@ export async function generateTicketPdf(data: TicketPdfData): Promise<Buffer> {
 
       // QR container
       doc.roundedRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 10).fill('#ffffff');
-      doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
+      doc.image(qrBuffer!, qrX, qrY, { width: qrSize, height: qrSize });
 
       // Scan label
       doc

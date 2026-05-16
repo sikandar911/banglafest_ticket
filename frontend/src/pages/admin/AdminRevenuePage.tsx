@@ -1,15 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
-import { PoundSterling, TrendingDown } from 'lucide-react';
+import { PoundSterling, TrendingDown, AlertCircle } from 'lucide-react';
 import { adminApi } from '../../api/admin';
 import { PageSpinner } from '../../components/ui/Spinner';
 
 export function AdminRevenuePage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-revenue'],
     queryFn: () => adminApi.getRevenue().then((r) => r.data),
   });
 
   if (isLoading) return <PageSpinner />;
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-white">Revenue</h2>
+        <div className="card flex flex-col items-center py-12 gap-4">
+          <AlertCircle className="w-10 h-10 text-red-400" />
+          <p className="text-gray-400">Failed to load revenue data.</p>
+          <button className="btn-secondary text-sm" onClick={() => refetch()}>Retry</button>
+        </div>
+      </div>
+    );
+  }
+
   const rev = data?.revenue;
   if (!rev) return null;
 

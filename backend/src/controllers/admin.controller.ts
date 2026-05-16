@@ -17,6 +17,25 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
   try {
     const { title, description, startTime, endTime, location, imageUrl } = req.body;
 
+    if (!title || !String(title).trim()) {
+      res.status(400).json({ error: 'Title is required.' });
+      return;
+    }
+    if (!startTime || !endTime) {
+      res.status(400).json({ error: 'Start time and end time are required.' });
+      return;
+    }
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      res.status(400).json({ error: 'Invalid date format.' });
+      return;
+    }
+    if (end <= start) {
+      res.status(400).json({ error: 'End time must be after start time.' });
+      return;
+    }
+
     const event = await prisma.event.create({
       data: {
         title,
@@ -86,6 +105,26 @@ export async function createTier(req: Request, res: Response, next: NextFunction
   try {
     const { id: eventId } = req.params;
     const { name, description, price, totalCapacity, features, maxPerPerson } = req.body;
+
+    if (!name || !String(name).trim()) {
+      res.status(400).json({ error: 'Tier name is required.' });
+      return;
+    }
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice < 0.01) {
+      res.status(400).json({ error: 'Price must be at least £0.01.' });
+      return;
+    }
+    const parsedCapacity = parseInt(totalCapacity);
+    if (isNaN(parsedCapacity) || parsedCapacity < 1) {
+      res.status(400).json({ error: 'Total capacity must be at least 1.' });
+      return;
+    }
+    const parsedMax = parseInt(maxPerPerson) || 1;
+    if (parsedMax < 1) {
+      res.status(400).json({ error: 'Max per person must be at least 1.' });
+      return;
+    }
 
     const event = await prisma.event.findUnique({ where: { id: eventId } });
     if (!event) {
@@ -185,13 +224,18 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
       },
     });
 
+    const totalRevenue = Number(result._sum.totalAmount ?? 0);
+    const refundedAmount = Number(refundedResult._sum.totalAmount ?? 0);
+
     res.json({
-      totalRevenue: Number(result._sum.totalAmount ?? 0),
-      paidOrderCount: result._count.id,
-      totalRefunded: Number(refundedResult._sum.totalAmount ?? 0),
-      refundedOrderCount: refundedResult._count.id,
-      netRevenue:
-        Number(result._sum.totalAmount ?? 0) - Number(refundedResult._sum.totalAmount ?? 0),
+      revenue: {
+        totalRevenue,
+        paidOrders: result._count.id,
+        refundedAmount,
+        refundedOrders: refundedResult._count.id,
+        netRevenue: totalRevenue - refundedAmount,
+        totalOrders: result._count.id + refundedResult._count.id,
+      },
       recentOrders: recentOrders.map((o) => ({ ...o, totalAmount: Number(o.totalAmount) })),
     });
   } catch (err) {
@@ -313,13 +357,14 @@ export async function refundOrder(req: Request, res: Response, next: NextFunctio
       }),
     ]);
 
-    await sendRefundConfirmationEmail(order.user.email, order.user.name, {
+    // Email is best-effort — don't fail the refund if email service is down
+    sendRefundConfirmationEmail(order.user.email, order.user.name, {
       orderId: order.id,
       amount: Number(order.totalAmount),
       eventTitle: order.ticketTier.event.title,
       tierName: order.ticketTier.name,
       quantity: order.quantity,
-    });
+    }).catch((err) => console.error('[refund] Failed to send confirmation email:', err));
 
     res.json({
       message: stripeRefunded

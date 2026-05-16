@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Download, CheckCircle2, Clock, QrCode } from 'lucide-react';
+import { Download, CheckCircle2, Clock, QrCode, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { userApi } from '../../api/user';
@@ -17,7 +17,7 @@ interface MyTicket {
 }
 
 export function MyTicketsPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['my-tickets'],
     queryFn: () => userApi.getMyTickets().then((r) => r.data),
     // Poll every 15s so status updates automatically after admin scans
@@ -46,7 +46,12 @@ export function MyTicketsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">My Tickets</h2>
-        <span className="text-xs text-gray-500">Updates automatically</span>
+        {dataUpdatedAt > 0 && (
+          <span className="flex items-center gap-1.5 text-xs text-gray-500">
+            <RefreshCw className="w-3 h-3" />
+            Synced {format(new Date(dataUpdatedAt), 'h:mm:ss a')}
+          </span>
+        )}
       </div>
 
       {tickets.length === 0 ? (

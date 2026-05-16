@@ -108,6 +108,10 @@ export function AdminEventsPage() {
       toast.error("Please fill in required fields");
       return;
     }
+    if (new Date(eventForm.endTime) <= new Date(eventForm.startTime)) {
+      toast.error("End time must be after start time");
+      return;
+    }
 
     if (editingEvent) {
       updateMutation.mutate({ id: editingEvent.id, data: eventForm });
@@ -358,9 +362,9 @@ export function AdminEventsPage() {
                             <input 
                               className="input text-sm" 
                               placeholder="0.00" 
-                              type="number" 
-                              min="0" 
-                              step="0.01" 
+                              type="number"
+                              min="0.01"
+                              step="0.01"
                               value={tierForm.price} 
                               onChange={(e) => setTierForms((p) => ({ 
                                 ...p, 

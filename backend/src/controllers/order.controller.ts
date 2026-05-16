@@ -17,33 +17,30 @@ export async function createOrder(req: AuthRequest, res: Response, next: NextFun
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Lock the tier row for update
-      const tier = await tx.ticketTier.findUnique({ where: { id: tierId } });
-      if (!tier) throw new Error('TIER_NOT_FOUND');
-      if (tier.availableQty < quantity) throw new Error('INSUFFICIENT_INVENTORY');
-
-      const totalAmount = Number(tier.price) * quantity;
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-      // Decrement availability atomically
-      await tx.ticketTier.update({
-        where: { id: tierId },
+      // Atomic decrement — only succeeds if availableQty >= quantity.
+      // This eliminates the read-then-write race condition: if two requests
+      // arrive simultaneously, only one will match the where clause.
+      const updated = await tx.ticketTier.updateMany({
+        where: { id: tierId, availableQty: { gte: quantity } },
         data: { availableQty: { decrement: quantity } },
       });
 
-      // Create PENDING order
+      if (updated.count === 0) {
+        // Could be tier not found OR insufficient inventory — check which
+        const tier = await tx.ticketTier.findUnique({ where: { id: tierId } });
+        if (!tier) throw new Error('TIER_NOT_FOUND');
+        throw new Error('INSUFFICIENT_INVENTORY');
+      }
+
+      const tier = await tx.ticketTier.findUnique({ where: { id: tierId } });
+      const totalAmount = Number(tier!.price) * quantity;
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
       const order = await tx.order.create({
-        data: {
-          userId,
-          tierId,
-          quantity,
-          totalAmount,
-          expiresAt,
-          status: 'PENDING',
-        },
+        data: { userId, tierId, quantity, totalAmount, expiresAt, status: 'PENDING' },
       });
 
-      return { order, tier, totalAmount };
+      return { order, tier: tier!, totalAmount };
     });
 
     res.status(201).json({
@@ -82,10 +79,12 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
 
     if (!order) { res.status(404).json({ error: 'Order not found.' }); return; }
     if (order.userId !== req.user!.id) { res.status(403).json({ error: 'Access denied.' }); return; }
-    // Idempotent: already paid means frontend beat the webhook or double-submit
     if (order.status === 'PAID') { res.json({ orderId: order.id, message: 'Order already confirmed.' }); return; }
     if (order.status !== 'PENDING') { res.status(400).json({ error: 'Order is no longer pending.' }); return; }
+    if (order.expiresAt < new Date()) { res.status(400).json({ error: 'Order has expired. Please start a new checkout.' }); return; }
 
+    // Atomic status transition — prevents double-confirmation if webhook and
+    // frontend confirmOrder race each other
     const ticketData = Array.from({ length: order.quantity }).map(() => ({
       orderId: order.id,
       ticketTierId: order.tierId,
@@ -94,10 +93,18 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
     }));
 
     const tickets = await prisma.$transaction(async (tx) => {
+      // Transition PENDING → PAID atomically; 0 rows means already processed
+      const transitioned = await tx.order.updateMany({
+        where: { id: order.id, status: 'PENDING' },
+        data: { status: 'PAID' },
+      });
+      if (transitioned.count === 0) return null; // webhook beat us — idempotent
+
       const created = await Promise.all(ticketData.map((d) => tx.ticket.create({ data: d })));
-      await tx.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
       return created;
     });
+
+    if (!tickets) { res.json({ orderId: order.id, message: 'Order already confirmed.' }); return; }
 
     const pdfBuffers = await Promise.all(
       tickets.map((ticket) =>
