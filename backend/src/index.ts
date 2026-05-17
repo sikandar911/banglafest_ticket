@@ -13,6 +13,7 @@ import stripeRoutes from './routes/stripe.routes';
 import userRoutes from './routes/user.routes';
 import adminRoutes from './routes/admin.routes';
 import scannerRoutes from './routes/scanner.routes';
+import promoRoutes from './routes/promo.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { startExpireOrdersJob } from './jobs/expireOrders';
 
@@ -63,6 +64,7 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/scanner', scannerRoutes);
+app.use('/api/promo', promoRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -8,7 +8,7 @@ import { generateTicketPdf } from '../services/pdf.service';
 // Creates a PENDING order and reserves tickets using a Prisma transaction
 export async function createOrder(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { tierId, quantity } = req.body;
+    const { tierId, quantity, promoCode } = req.body;
     const userId = req.user!.id;
 
     if (!tierId || !quantity || quantity < 1) {
@@ -16,36 +16,82 @@ export async function createOrder(req: AuthRequest, res: Response, next: NextFun
       return;
     }
 
+    // Validate promo code if provided
+    let promoCodeRecord: { id: string } | null = null;
+    let discountPerTicket = 0;
+
+    if (promoCode) {
+      const normalizedCode = String(promoCode).trim().toUpperCase();
+      const found = await prisma.promoCode.findUnique({
+        where: { code: normalizedCode },
+        include: {
+          events: {
+            include: {
+              event: { include: { ticketTiers: { where: { id: tierId } } } },
+            },
+          },
+        },
+      });
+
+      if (found && found.isActive) {
+        const tierInPromo = found.events.some((pe) => pe.event.ticketTiers.length > 0);
+        if (tierInPromo) {
+          promoCodeRecord = { id: found.id };
+          const tier = await prisma.ticketTier.findUnique({ where: { id: tierId } });
+          discountPerTicket = tier?.promoDiscountAmount ? Number(tier.promoDiscountAmount) : 0;
+        }
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       // Atomic decrement — only succeeds if availableQty >= quantity.
-      // This eliminates the read-then-write race condition: if two requests
-      // arrive simultaneously, only one will match the where clause.
       const updated = await tx.ticketTier.updateMany({
         where: { id: tierId, availableQty: { gte: quantity } },
         data: { availableQty: { decrement: quantity } },
       });
 
       if (updated.count === 0) {
-        // Could be tier not found OR insufficient inventory — check which
         const tier = await tx.ticketTier.findUnique({ where: { id: tierId } });
         if (!tier) throw new Error('TIER_NOT_FOUND');
         throw new Error('INSUFFICIENT_INVENTORY');
       }
 
       const tier = await tx.ticketTier.findUnique({ where: { id: tierId } });
-      const totalAmount = Number(tier!.price) * quantity;
+      const baseTotal = Number(tier!.price) * quantity;
+      const totalDiscount = discountPerTicket * quantity;
+      const totalAmount = Math.max(0, baseTotal - totalDiscount);
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
       const order = await tx.order.create({
-        data: { userId, tierId, quantity, totalAmount, expiresAt, status: 'PENDING' },
+        data: {
+          userId,
+          tierId,
+          quantity,
+          totalAmount,
+          expiresAt,
+          status: 'PENDING',
+          ...(promoCodeRecord && {
+            promoCodeId: promoCodeRecord.id,
+            discountAmount: totalDiscount,
+          }),
+        },
       });
 
-      return { order, tier: tier!, totalAmount };
+      // Increment promo code usage count
+      if (promoCodeRecord) {
+        await tx.promoCode.update({
+          where: { id: promoCodeRecord.id },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
+
+      return { order, tier: tier!, totalAmount, totalDiscount };
     });
 
     res.status(201).json({
       orderId: result.order.id,
       totalAmount: result.totalAmount,
+      discountAmount: result.totalDiscount,
       expiresAt: result.order.expiresAt,
       tier: { id: result.tier.id, name: result.tier.name, price: Number(result.tier.price) },
     });

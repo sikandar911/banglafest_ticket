@@ -30,6 +30,7 @@ import { AdminEventsPage } from './pages/admin/AdminEventsPage';
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminRevenuePage } from './pages/admin/AdminRevenuePage';
+import AdminPromoCodesPage from './pages/admin/AdminPromoCodesPage';
 
 // Scanner
 import { ScannerPage } from './pages/scanner/ScannerPage';
@@ -84,6 +85,7 @@ export default function App() {
                   <Route path="orders" element={<AdminOrdersPage />} />
                   <Route path="users" element={<AdminUsersPage />} />
                   <Route path="revenue" element={<AdminRevenuePage />} />
+                  <Route path="promo-codes" element={<AdminPromoCodesPage />} />
                 </Route>
               </Route>
 

@@ -1,5 +1,5 @@
 import api from './client';
-import type { Event, TicketTier, AdminUser, Order, RevenueData } from '../types';
+import type { Event, TicketTier, AdminUser, Order, RevenueData, PromoCode } from '../types';
 
 export const adminApi = {
   // Events
@@ -42,4 +42,17 @@ export const adminApi = {
   // Bypass - Book tickets without payment
   bypassBookTicket: (data: { userId: string; tierId: string; quantity: number }) =>
     api.post<{ order: Order; tickets: any[]; message: string }>('/api/admin/bypass', data),
+
+  // Promo Codes
+  listPromoCodes: () =>
+    api.get<{ promoCodes: PromoCode[] }>('/api/admin/promo-codes'),
+
+  createPromoCode: (data: { code: string; influencerName: string; socialMedia?: string; eventIds: string[] }) =>
+    api.post<{ promoCode: PromoCode }>('/api/admin/promo-codes', data),
+
+  togglePromoCode: (id: string) =>
+    api.patch<{ promoCode: PromoCode }>(`/api/admin/promo-codes/${id}/toggle`),
+
+  deletePromoCode: (id: string) =>
+    api.delete(`/api/admin/promo-codes/${id}`),
 };

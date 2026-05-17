@@ -28,6 +28,7 @@ export interface TicketTier {
   features?: string[];
   maxPerPerson: number;
   eventId: string;
+  promoDiscountAmount?: number;
 }
 
 export interface Event {
@@ -97,6 +98,21 @@ export interface AdminUser {
   isVerified: boolean;
   createdAt: string;
   _count?: { orders: number; tickets: number };
+}
+
+// ─── Promo Codes ─────────────────────────────────────────────────────────────
+export interface PromoCode {
+  id: string;
+  code: string;
+  influencerName: string;
+  socialMedia?: string;
+  isActive: boolean;
+  usageCount: number;
+  createdAt: string;
+  events?: Array<{
+    event: { id: string; title: string };
+  }>;
+  _count?: { orders: number };
 }
 
 // ─── Scanner ──────────────────────────────────────────────────────────────────

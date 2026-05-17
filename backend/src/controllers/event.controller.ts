@@ -17,6 +17,7 @@ export async function listEvents(_req: Request, res: Response, next: NextFunctio
             availableQty: true,
             features: true,
             maxPerPerson: true,
+            promoDiscountAmount: true,
           },
         },
       },
@@ -27,6 +28,7 @@ export async function listEvents(_req: Request, res: Response, next: NextFunctio
       ticketTiers: event.ticketTiers.map((tier) => ({
         ...tier,
         price: Number(tier.price),
+        promoDiscountAmount: tier.promoDiscountAmount ? Number(tier.promoDiscountAmount) : null,
         features: tier.features ? JSON.parse(tier.features) : [],
         availabilityStatus: getAvailabilityStatus(tier.availableQty, tier.totalCapacity),
       })),
@@ -55,6 +57,7 @@ export async function getEvent(req: Request, res: Response, next: NextFunction):
             availableQty: true,
             features: true,
             maxPerPerson: true,
+            promoDiscountAmount: true,
           },
         },
       },
@@ -71,6 +74,7 @@ export async function getEvent(req: Request, res: Response, next: NextFunction):
         ticketTiers: event.ticketTiers.map((tier) => ({
           ...tier,
           price: Number(tier.price),
+          promoDiscountAmount: tier.promoDiscountAmount ? Number(tier.promoDiscountAmount) : null,
           features: tier.features ? JSON.parse(tier.features) : [],
           availabilityStatus: getAvailabilityStatus(tier.availableQty, tier.totalCapacity),
         })),

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { CalendarDays, DollarSign, Users, ShoppingBag, BarChart3 } from 'lucide-react';
+import { CalendarDays, DollarSign, Users, ShoppingBag, BarChart3, Tag } from 'lucide-react';
 
 const links = [
   { to: '/admin', icon: BarChart3, label: 'Overview', end: true },
@@ -7,6 +7,7 @@ const links = [
   { to: '/admin/orders', icon: ShoppingBag, label: 'Orders' },
   { to: '/admin/users', icon: Users, label: 'Users' },
   { to: '/admin/revenue', icon: DollarSign, label: 'Revenue' },
+  { to: '/admin/promo-codes', icon: Tag, label: 'Promo Codes' },
 ];
 
 export function AdminLayout() {

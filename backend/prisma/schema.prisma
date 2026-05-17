@@ -37,26 +37,28 @@ model Event {
   createdBy   String?      @map("created_by")
   createdAt   DateTime     @default(now()) @map("created_at")
   imageUrl    String?      @map("image_url")
-  creator     User?        @relation("EventCreatedBy", fields: [createdBy], references: [id])
+  creator     User?            @relation("EventCreatedBy", fields: [createdBy], references: [id])
   ticketTiers TicketTier[]
+  promoCodes  PromoCodeEvent[]
 
   @@map("events")
 }
 
 model TicketTier {
-  id            String      @id @default(uuid())
-  eventId       String      @map("event_id")
-  name          String
-  price         Decimal     @db.Decimal(10, 2)
-  totalCapacity Int         @map("total_capacity")
-  availableQty  Int         @map("available_qty")
-  description   String?
-  features      String?
-  maxPerPerson  Int         @default(1) @map("max_per_person")
-  orderItems    OrderItem[]
-  orders        Order[]     @relation("OrderTier")
-  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  tickets       Ticket[]
+  id                  String      @id @default(uuid())
+  eventId             String      @map("event_id")
+  name                String
+  price               Decimal     @db.Decimal(10, 2)
+  totalCapacity       Int         @map("total_capacity")
+  availableQty        Int         @map("available_qty")
+  description         String?
+  features            String?
+  maxPerPerson        Int         @default(1) @map("max_per_person")
+  promoDiscountAmount Decimal?    @map("promo_discount_amount") @db.Decimal(10, 2)
+  orderItems          OrderItem[]
+  orders              Order[]     @relation("OrderTier")
+  event               Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets             Ticket[]
 
   @@map("ticket_tiers")
 }
@@ -73,9 +75,12 @@ model Order {
   expiresAt           DateTime    @map("expires_at")
   createdAt           DateTime    @default(now()) @map("created_at")
   isBypassed          Boolean     @default(false) @map("is_bypassed")
+  promoCodeId         String?     @map("promo_code_id")
+  discountAmount      Decimal?    @map("discount_amount") @db.Decimal(10, 2)
   items               OrderItem[]
   ticketTier          TicketTier  @relation("OrderTier", fields: [tierId], references: [id])
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode           PromoCode?  @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
   tickets             Ticket[]
 
   @@map("orders")
@@ -93,6 +98,33 @@ model OrderItem {
 
   @@unique([orderId, tierId])
   @@map("order_items")
+}
+
+model PromoCode {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  influencerName String   @map("influencer_name")
+  socialMedia    String?  @map("social_media")
+  isActive       Boolean  @default(true) @map("is_active")
+  usageCount     Int      @default(0) @map("usage_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  events PromoCodeEvent[]
+  orders Order[]
+
+  @@map("promo_codes")
+}
+
+model PromoCodeEvent {
+  promoCodeId String @map("promo_code_id")
+  eventId     String @map("event_id")
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([promoCodeId, eventId])
+  @@map("promo_code_events")
 }
 
 model Ticket {
