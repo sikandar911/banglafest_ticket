@@ -51,9 +51,16 @@ export async function createPaymentIntent(
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(Number(order.totalAmount) * 100),
       currency: 'gbp',
-      metadata: { orderId: order.id },
-      description: `${order.ticketTier.event.title} — ${order.ticketTier.name} × ${order.quantity}`,
+      description: `[${order.id.slice(0, 8).toUpperCase()}] ${order.ticketTier.event.title} — ${order.ticketTier.name} × ${order.quantity}`,
       receipt_email: order.user.email,
+      metadata: {
+        order_id: order.id,
+        event_title: order.ticketTier.event.title,
+        tier_name: order.ticketTier.name,
+        quantity: String(order.quantity),
+        customer_name: order.user.name,
+        customer_email: order.user.email,
+      },
     });
 
     await prisma.order.update({
