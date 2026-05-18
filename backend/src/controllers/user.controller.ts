@@ -1,4 +1,5 @@
-import { Response, NextFunction } from 'express';
+import { Response, NextFunction, Request } from 'express';
+import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
 import { generateTicketPdf } from '../services/pdf.service';
@@ -80,8 +81,28 @@ export async function getMyOrders(req: AuthRequest, res: Response, next: NextFun
 }
 
 // GET /api/users/me/tickets/:ticketId/pdf
-export async function downloadTicketPdf(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+// Supports auth via Authorization header OR ?token= query param (for direct browser downloads)
+export async function downloadTicketPdf(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    // Resolve user from either Authorization header or ?token= query param
+    let userId: string | undefined = (req as AuthRequest).user?.id;
+    if (!userId && req.query.token) {
+      try {
+        const decoded = jwt.verify(
+          req.query.token as string,
+          process.env.JWT_ACCESS_SECRET!
+        ) as { id: string };
+        userId = decoded.id;
+      } catch {
+        res.status(401).json({ error: 'Invalid or expired token.' });
+        return;
+      }
+    }
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+
     const { ticketId } = req.params;
     const ticket = await prisma.ticket.findUnique({
       where: { id: ticketId },
@@ -97,7 +118,7 @@ export async function downloadTicketPdf(req: AuthRequest, res: Response, next: N
       return;
     }
 
-    if (ticket.userId !== req.user!.id) {
+    if (ticket.userId !== userId) {
       res.status(403).json({ error: 'Access denied.' });
       return;
     }
@@ -112,10 +133,15 @@ export async function downloadTicketPdf(req: AuthRequest, res: Response, next: N
       location: ticket.ticketTier.event.location ?? '',
       orderId: ticket.order.id,
       createdAt: ticket.createdAt,
+      features: ticket.ticketTier.features ? JSON.parse(ticket.ticketTier.features as string) : undefined,
+      performers: ticket.ticketTier.event.performers ? JSON.parse(ticket.ticketTier.event.performers as string) : undefined,
+      specialAdditions: ticket.ticketTier.event.specialAdditions ? JSON.parse(ticket.ticketTier.event.specialAdditions as string) : undefined,
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="ticket-${ticket.id.slice(0, 8)}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="banglafest-ticket-${ticket.id.slice(0, 8)}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Cache-Control', 'no-store');
     res.send(pdfBuffer);
   } catch (err) {
     next(err);

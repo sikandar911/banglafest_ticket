@@ -28,17 +28,19 @@ model User {
 }
 
 model Event {
-  id          String       @id @default(uuid())
-  title       String
-  description String?
-  startTime   DateTime     @map("start_time")
-  endTime     DateTime     @map("end_time")
-  location    String?
-  createdBy   String?      @map("created_by")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  imageUrl    String?      @map("image_url")
-  creator     User?        @relation("EventCreatedBy", fields: [createdBy], references: [id])
-  ticketTiers TicketTier[]
+  id               String       @id @default(uuid())
+  title            String
+  description      String?
+  startTime        DateTime     @map("start_time")
+  endTime          DateTime     @map("end_time")
+  location         String?
+  createdBy        String?      @map("created_by")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  imageUrl         String?      @map("image_url")
+  performers       String?      // JSON: [{name, ticketDisplayName}]
+  specialAdditions String?      @map("special_additions") // JSON: [{name, description, ticketDisplayText}]
+  creator          User?        @relation("EventCreatedBy", fields: [createdBy], references: [id])
+  ticketTiers      TicketTier[]
 
   @@map("events")
 }

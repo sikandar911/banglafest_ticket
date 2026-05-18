@@ -4,6 +4,10 @@ import { getMyTickets, getMyOrders, downloadTicketPdf, getProfile } from '../con
 
 const router = Router();
 
+// PDF download must be registered BEFORE router.use(authenticate) so the
+// controller can handle auth itself via either header or ?token= query param.
+router.get('/me/tickets/:ticketId/pdf', downloadTicketPdf);
+
 router.use(authenticate);
 
 /**
@@ -251,6 +255,4 @@ router.get('/me/orders', getMyOrders);
  *       404:
  *         description: Ticket not found
  */
-router.get('/me/tickets/:ticketId/pdf', downloadTicketPdf);
-
 export default router;

@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Download, CheckCircle2, Clock, QrCode, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
 import { userApi } from '../../api/user';
 import { PageSpinner } from '../../components/ui/Spinner';
 
@@ -25,18 +24,14 @@ export function MyTicketsPage() {
     refetchIntervalInBackground: false,
   });
 
-  const downloadPdf = async (ticketId: string) => {
-    try {
-      const res = await userApi.downloadTicketPdf(ticketId);
-      const url = window.URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `banglafest-ticket-${ticketId.slice(0, 8)}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Failed to download PDF');
-    }
+  const downloadPdf = (ticketId: string) => {
+    // Use direct URL with token so IDM and browser both download correctly
+    const token = localStorage.getItem('accessToken') ?? '';
+    const base  = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    window.open(
+      `${base}/api/users/me/tickets/${ticketId}/pdf?token=${encodeURIComponent(token)}`,
+      '_blank'
+    );
   };
 
   if (isLoading) return <PageSpinner />;

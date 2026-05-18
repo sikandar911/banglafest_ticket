@@ -15,7 +15,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-04
 // POST /api/admin/events
 export async function createEvent(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { title, description, startTime, endTime, location, imageUrl } = req.body;
+    const { title, description, startTime, endTime, location, imageUrl, performers, specialAdditions } = req.body;
 
     if (!title || !String(title).trim()) {
       res.status(400).json({ error: 'Title is required.' });
@@ -45,6 +45,8 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
         location,
         imageUrl: imageUrl || null,
         createdBy: req.user!.id,
+        performers:       performers?.length       ? JSON.stringify(performers)       : null,
+        specialAdditions: specialAdditions?.length ? JSON.stringify(specialAdditions) : null,
       },
     });
 
@@ -58,7 +60,7 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
 export async function updateEvent(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const { title, description, startTime, endTime, location, imageUrl } = req.body;
+    const { title, description, startTime, endTime, location, imageUrl, performers, specialAdditions } = req.body;
 
     const existing = await prisma.event.findUnique({ where: { id } });
     if (!existing) {
@@ -75,6 +77,12 @@ export async function updateEvent(req: AuthRequest, res: Response, next: NextFun
         ...(endTime && { endTime: new Date(endTime) }),
         ...(location !== undefined && { location }),
         ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
+        ...(performers !== undefined && {
+          performers: performers?.length ? JSON.stringify(performers) : null,
+        }),
+        ...(specialAdditions !== undefined && {
+          specialAdditions: specialAdditions?.length ? JSON.stringify(specialAdditions) : null,
+        }),
       },
     });
 
@@ -409,6 +417,9 @@ export async function resendTicket(req: Request, res: Response, next: NextFuncti
       location: ticket.ticketTier.event.location ?? '',
       orderId: ticket.order.id,
       createdAt: ticket.createdAt,
+      features: ticket.ticketTier.features ? JSON.parse(ticket.ticketTier.features as string) : undefined,
+      performers: ticket.ticketTier.event.performers ? JSON.parse(ticket.ticketTier.event.performers as string) : undefined,
+      specialAdditions: ticket.ticketTier.event.specialAdditions ? JSON.parse(ticket.ticketTier.event.specialAdditions as string) : undefined,
     });
 
     await sendTicketConfirmationEmail(
@@ -463,6 +474,9 @@ export async function resendOrderTickets(req: Request, res: Response, next: Next
           location: order.ticketTier.event.location ?? '',
           orderId: order.id,
           createdAt: ticket.createdAt,
+          features: order.ticketTier.features ? JSON.parse(order.ticketTier.features as string) : undefined,
+          performers: order.ticketTier.event.performers ? JSON.parse(order.ticketTier.event.performers as string) : undefined,
+          specialAdditions: order.ticketTier.event.specialAdditions ? JSON.parse(order.ticketTier.event.specialAdditions as string) : undefined,
         })
       )
     );
@@ -567,6 +581,9 @@ export async function bypassBookTicket(req: AuthRequest, res: Response, next: Ne
           location: order.ticketTier.event.location ?? '',
           orderId: order.id,
           createdAt: ticket.createdAt,
+          features: tier.features ? JSON.parse(tier.features as string) : undefined,
+          performers: tier.event.performers ? JSON.parse(tier.event.performers as string) : undefined,
+          specialAdditions: tier.event.specialAdditions ? JSON.parse(tier.event.specialAdditions as string) : undefined,
         })
       )
     );

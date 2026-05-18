@@ -15,6 +15,17 @@ export interface AuthTokens {
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────
+export interface Performer {
+  name: string;
+  ticketDisplayName: string;
+}
+
+export interface SpecialAddition {
+  name: string;
+  description: string;
+  ticketDisplayText: string;
+}
+
 export type AvailabilityStatus = 'AVAILABLE' | 'SELLING_FAST' | 'ONLY_A_FEW_LEFT' | 'SOLD_OUT';
 
 export interface TicketTier {
@@ -38,6 +49,8 @@ export interface Event {
   endTime: string;
   location: string;
   imageUrl?: string;
+  performers?: Performer[];
+  specialAdditions?: SpecialAddition[];
   ticketTiers: TicketTier[];
   createdAt: string;
 }

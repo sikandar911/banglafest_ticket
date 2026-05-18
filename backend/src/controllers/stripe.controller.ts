@@ -170,7 +170,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session): Promise<
 async function fulfillOrder(
   order: Awaited<ReturnType<typeof prisma.order.findUnique>> & {
     user: { name: string; email: string };
-    ticketTier: { name: string; event: { title: string; startTime: Date; location: string | null } };
+    ticketTier: { name: string; features: string | null; event: { title: string; startTime: Date; location: string | null; performers: string | null; specialAdditions: string | null } };
   },
   paymentIntentId?: string
 ): Promise<void> {
@@ -211,6 +211,9 @@ async function fulfillOrder(
         location: order!.ticketTier.event.location ?? '',
         orderId: order!.id,
         createdAt: ticket.createdAt,
+        features: order!.ticketTier.features ? JSON.parse(order!.ticketTier.features as string) : undefined,
+        performers: order!.ticketTier.event.performers ? JSON.parse(order!.ticketTier.event.performers) : undefined,
+        specialAdditions: order!.ticketTier.event.specialAdditions ? JSON.parse(order!.ticketTier.event.specialAdditions) : undefined,
       })
     )
   );

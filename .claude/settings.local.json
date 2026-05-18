@@ -37,7 +37,9 @@
       "Bash(echo \"Backend started PID: $!\")",
       "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c cd /d E:\\\\MERN\\\\banglafest_ticket\\\\backend && npm run dev\" -WindowStyle Normal)",
       "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c cd /d E:\\\\MERN\\\\banglafest_ticket\\\\frontend && npm run dev\" -WindowStyle Normal)",
-      "Bash(git show *)"
+      "Bash(git show *)",
+      "WebFetch(domain:www.canva.com)",
+      "Bash(npx prisma *)"
     ]
   }
 }

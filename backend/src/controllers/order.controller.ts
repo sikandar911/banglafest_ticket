@@ -118,6 +118,9 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
           location: order.ticketTier.event.location ?? '',
           orderId: order.id,
           createdAt: ticket.createdAt,
+          features: order.ticketTier.features ? JSON.parse(order.ticketTier.features as string) : undefined,
+          performers: order.ticketTier.event.performers ? JSON.parse(order.ticketTier.event.performers as string) : undefined,
+          specialAdditions: order.ticketTier.event.specialAdditions ? JSON.parse(order.ticketTier.event.specialAdditions as string) : undefined,
         })
       )
     );

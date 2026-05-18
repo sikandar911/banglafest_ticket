@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { adminApi } from "../../api/admin";
 import { eventsApi } from "../../api/events";
 import { PageSpinner } from "../../components/ui/Spinner";
-import type { Event } from "../../types";
+import type { Event, Performer, SpecialAddition } from "../../types";
 
 type EventForm = {
   title: string;
@@ -15,6 +15,8 @@ type EventForm = {
   endTime: string;
   location: string;
   imageUrl: string;
+  performers: Performer[];
+  specialAdditions: SpecialAddition[];
 };
 
 type TierForm = { 
@@ -33,6 +35,8 @@ const emptyEvent: EventForm = {
   endTime: "",
   location: "",
   imageUrl: "",
+  performers: [],
+  specialAdditions: [],
 };
 
 const emptyTier: TierForm = { 
@@ -54,6 +58,8 @@ export function AdminEventsPage() {
   const [currentFeature, setCurrentFeature] = useState("");
   const [editingTierId, setEditingTierId] = useState<string | null>(null);
   const [editingTierForm, setEditingTierForm] = useState<TierForm>(emptyTier);
+  const [currentPerformer, setCurrentPerformer] = useState({ name: "", ticketDisplayName: "" });
+  const [currentSpecial, setCurrentSpecial] = useState({ name: "", description: "", ticketDisplayText: "" });
 
   const { data, isLoading } = useQuery({
     queryKey: ["events"],
@@ -62,20 +68,23 @@ export function AdminEventsPage() {
 
   const createMutation = useMutation({
     mutationFn: (d: EventForm) => adminApi.createEvent(d),
-    onSuccess: () => { 
-      qc.invalidateQueries({ queryKey: ["events"] }); 
-      toast.success("Event created"); 
-      setShowEventForm(false); 
-      setEventForm(emptyEvent); 
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      toast.success("Event created");
+      setShowEventForm(false);
+      setEventForm(emptyEvent);
+      setCurrentPerformer({ name: "", ticketDisplayName: "" });
+      setCurrentSpecial({ name: "", description: "", ticketDisplayText: "" });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: EventForm }) => adminApi.updateEvent(id, data),
-    onSuccess: () => { 
-      qc.invalidateQueries({ queryKey: ["events"] }); 
-      toast.success("Event updated"); 
-      setEditingEvent(null); 
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      toast.success("Event updated");
+      setEditingEvent(null);
+      setShowEventForm(false);
     },
   });
 
@@ -148,7 +157,11 @@ export function AdminEventsPage() {
       endTime: event.endTime.slice(0, 16),
       location: event.location || "",
       imageUrl: event.imageUrl || "",
+      performers: event.performers ? [...event.performers] : [],
+      specialAdditions: event.specialAdditions ? [...event.specialAdditions] : [],
     });
+    setCurrentPerformer({ name: "", ticketDisplayName: "" });
+    setCurrentSpecial({ name: "", description: "", ticketDisplayText: "" });
     setShowEventForm(true);
   };
 
@@ -193,6 +206,26 @@ export function AdminEventsPage() {
     }));
   };
 
+  const addPerformer = () => {
+    if (!currentPerformer.name.trim() || !currentPerformer.ticketDisplayName.trim()) return;
+    setEventForm((prev) => ({ ...prev, performers: [...prev.performers, { ...currentPerformer }] }));
+    setCurrentPerformer({ name: "", ticketDisplayName: "" });
+  };
+
+  const removePerformer = (index: number) => {
+    setEventForm((prev) => ({ ...prev, performers: prev.performers.filter((_, i) => i !== index) }));
+  };
+
+  const addSpecial = () => {
+    if (!currentSpecial.name.trim() || !currentSpecial.ticketDisplayText.trim()) return;
+    setEventForm((prev) => ({ ...prev, specialAdditions: [...prev.specialAdditions, { ...currentSpecial }] }));
+    setCurrentSpecial({ name: "", description: "", ticketDisplayText: "" });
+  };
+
+  const removeSpecial = (index: number) => {
+    setEventForm((prev) => ({ ...prev, specialAdditions: prev.specialAdditions.filter((_, i) => i !== index) }));
+  };
+
   if (isLoading) return <PageSpinner />;
   const events = data?.events ?? [];
 
@@ -202,10 +235,12 @@ export function AdminEventsPage() {
         <h2 className="text-xl font-bold text-white">Events</h2>
         <button 
           className="btn-primary py-2 text-sm" 
-          onClick={() => { 
-            setShowEventForm(true); 
-            setEditingEvent(null); 
-            setEventForm(emptyEvent); 
+          onClick={() => {
+            setShowEventForm(true);
+            setEditingEvent(null);
+            setEventForm(emptyEvent);
+            setCurrentPerformer({ name: "", ticketDisplayName: "" });
+            setCurrentSpecial({ name: "", description: "", ticketDisplayText: "" });
           }}
         >
           <Plus className="w-4 h-4" /> New Event
@@ -281,6 +316,95 @@ export function AdminEventsPage() {
                 />
               )}
             </div>
+
+            {/* Performers */}
+            <div>
+              <label className="label">Performers (shown on ticket)</label>
+              <div className="space-y-2 mb-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    className="input text-sm"
+                    placeholder="Full name"
+                    value={currentPerformer.name}
+                    onChange={(e) => setCurrentPerformer((p) => ({ ...p, name: e.target.value }))}
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      className="input text-sm flex-1"
+                      placeholder="Ticket display name"
+                      value={currentPerformer.ticketDisplayName}
+                      onChange={(e) => setCurrentPerformer((p) => ({ ...p, ticketDisplayName: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPerformer(); } }}
+                    />
+                    <button type="button" className="btn-secondary px-3 text-sm" onClick={addPerformer}>
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {eventForm.performers.length > 0 && (
+                <div className="space-y-1">
+                  {eventForm.performers.map((p, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-gray-800 rounded px-3 py-1.5 text-sm">
+                      <span className="text-white">{p.ticketDisplayName}</span>
+                      <span className="text-gray-400 text-xs mr-auto ml-3">({p.name})</span>
+                      <button type="button" onClick={() => removePerformer(idx)} className="text-gray-500 hover:text-red-400">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Special Additions */}
+            <div>
+              <label className="label">Special Additions (shown on ticket)</label>
+              <div className="space-y-2 mb-2">
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      className="input text-sm"
+                      placeholder="Name (e.g., VIP Gift Bag)"
+                      value={currentSpecial.name}
+                      onChange={(e) => setCurrentSpecial((p) => ({ ...p, name: e.target.value }))}
+                    />
+                    <input
+                      className="input text-sm"
+                      placeholder="Ticket display text"
+                      value={currentSpecial.ticketDisplayText}
+                      onChange={(e) => setCurrentSpecial((p) => ({ ...p, ticketDisplayText: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      className="input text-sm flex-1"
+                      placeholder="Description (optional)"
+                      value={currentSpecial.description}
+                      onChange={(e) => setCurrentSpecial((p) => ({ ...p, description: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSpecial(); } }}
+                    />
+                    <button type="button" className="btn-secondary px-3 text-sm" onClick={addSpecial}>
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {eventForm.specialAdditions.length > 0 && (
+                <div className="space-y-1">
+                  {eventForm.specialAdditions.map((s, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-gray-800 rounded px-3 py-1.5 text-sm">
+                      <span className="text-white">{s.ticketDisplayText}</span>
+                      <span className="text-gray-400 text-xs mr-auto ml-3">({s.name})</span>
+                      <button type="button" onClick={() => removeSpecial(idx)} className="text-gray-500 hover:text-red-400">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3">
               <button 
                 type="submit" 
@@ -289,10 +413,10 @@ export function AdminEventsPage() {
               >
                 {editingEvent ? "Update" : "Create"}
               </button>
-              <button 
-                type="button" 
-                className="btn-secondary text-sm" 
-                onClick={() => setShowEventForm(false)}
+              <button
+                type="button"
+                className="btn-secondary text-sm"
+                onClick={() => { setShowEventForm(false); setEditingEvent(null); }}
               >
                 Cancel
               </button>

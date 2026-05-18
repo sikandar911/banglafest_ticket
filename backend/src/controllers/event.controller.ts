@@ -24,6 +24,8 @@ export async function listEvents(_req: Request, res: Response, next: NextFunctio
 
     const eventsWithAvailability = events.map((event) => ({
       ...event,
+      performers:       event.performers       ? JSON.parse(event.performers)       : [],
+      specialAdditions: event.specialAdditions ? JSON.parse(event.specialAdditions) : [],
       ticketTiers: event.ticketTiers.map((tier) => ({
         ...tier,
         price: Number(tier.price),
@@ -68,6 +70,8 @@ export async function getEvent(req: Request, res: Response, next: NextFunction):
     res.json({
       event: {
         ...event,
+        performers:       event.performers       ? JSON.parse(event.performers)       : [],
+        specialAdditions: event.specialAdditions ? JSON.parse(event.specialAdditions) : [],
         ticketTiers: event.ticketTiers.map((tier) => ({
           ...tier,
           price: Number(tier.price),
