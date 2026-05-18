@@ -43,6 +43,11 @@ function fmtDate(d: Date): string {
   return `${day}${ordinalSuffix(day)} ${month} ${d.getFullYear()}`;
 }
 
+function fmtIssued(d: Date): string {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
 // Resolved once at module load so ts-node-dev and compiled output both work
 const LOGO_PATH = path.join(__dirname, '../assets/logo.png');
 
@@ -50,7 +55,7 @@ export async function generateTicketPdf(data: TicketPdfData): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
     try {
       // ── QR code fetch with retry ─────────────────────────────────────────
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.ticketId)}&ecc=H&margin=4`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(data.ticketId)}&ecc=H&margin=2`;
       let qrBuffer: Buffer | null = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -73,169 +78,150 @@ export async function generateTicketPdf(data: TicketPdfData): Promise<Buffer> {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      // ── Palette ──────────────────────────────────────────────────────────
       const WHITE = '#ffffff';
-      const NAVY  = '#0d1b3e';
-      const GREEN = '#006A4E';
-      const RED   = '#CE1126';
-      const GRAY  = '#6b6b6b';
-      const LGRAY = '#cccccc';
       const BLACK = '#000000';
+      const GRAY  = '#666666';
+      const LGRAY = '#cccccc';
 
-      // ── Page base ────────────────────────────────────────────────────────
+      // White background
       doc.rect(0, 0, W, H).fill(WHITE);
-      doc.roundedRect(1, 1, W - 2, H - 2, 6)
-        .strokeColor(LGRAY).lineWidth(1).stroke();
 
-      // ════════════════ LEFT — Logo (x: 2–198) ═════════════════════════════
-      // Image is 677 × 667 RGBA (nearly square) — fit within left section.
-      // The PNG has transparent background so it composites cleanly on white.
-      const LW = 196;  // logo section width
-      doc.rect(2, 2, LW - 1, H - 4).fill(WHITE);
-      doc.image(LOGO_PATH, 2, 2, {
-        fit:    [LW - 4, H - 4],
+      // ── Outer dashed rounded border ──────────────────────────────────────
+      doc.roundedRect(2, 2, W - 4, H - 4, 8)
+        .dash(5, { space: 3 })
+        .strokeColor('#444444')
+        .lineWidth(1.3)
+        .stroke()
+        .undash();
+
+      // ════════════════ LEFT — Logo (x 0–222) ══════════════════════════════
+      const LW = 222;
+      doc.image(LOGO_PATH, 0, 0, {
+        fit:    [LW, H],
         align:  'center',
         valign: 'center',
       });
 
-      // Right-edge separator between logo and info sections
-      doc.moveTo(LW, 14).lineTo(LW, H - 14)
-        .strokeColor(LGRAY).lineWidth(0.75).stroke();
+      // ════════════════ VERTICAL DIVIDER (x ≈ 416) ═════════════════════════
+      const DIV_X = 416;
+      doc.moveTo(DIV_X, 16).lineTo(DIV_X, H - 16)
+        .strokeColor(LGRAY)
+        .lineWidth(0.8)
+        .stroke();
 
-      // ════════════════ MIDDLE — Event details (x: 204–412) ════════════════
-      const MX = LW + 8;   // 204
-      const MW = 207;
+      // ════════════════ MIDDLE — Event details (x 230–413) ═════════════════
+      const MX    = 230;
+      const MW    = DIV_X - MX - 3;  // ≈ 183
+      const LBL_W = 52;              // label column width
+      let   ry    = 14;
 
-      // "TICKET ADMISSION" header
-      doc.fontSize(12.5).font('Helvetica-Bold').fillColor(NAVY)
-        .text('TICKET ADMISSION', MX, 12, { width: MW });
+      // "TICKET ADMISSION" — large bold header
+      doc.fontSize(19).font('Helvetica-Bold').fillColor(BLACK)
+        .text('TICKET ADMISSION', MX, ry, { width: MW });
+      ry += 30;
 
-      // Rule under header
-      doc.moveTo(MX, 29).lineTo(MX + MW, 29)
-        .strokeColor(LGRAY).lineWidth(0.6).stroke();
+      // DATE row
+      doc.fontSize(9.5).font('Helvetica').fillColor(BLACK)
+        .text('DATE:', MX, ry, { width: LBL_W, lineBreak: false });
+      doc.fontSize(9.5).font('Helvetica').fillColor(BLACK)
+        .text(fmtDate(data.eventDate), MX + LBL_W, ry, { width: MW - LBL_W });
+      ry += 16;
 
-      // ── Detail rows ───────────────────────────────────────────────────────
-      const COL = 46;   // label column width
-      let ry = 35;
+      // VENUE row — venue name in bold, address continuation in regular
+      doc.fontSize(9.5).font('Helvetica').fillColor(BLACK)
+        .text('VENUE:', MX, ry, { width: LBL_W, lineBreak: false });
 
-      const row = (label: string, value: string) => {
-        doc.fontSize(7.5).font('Helvetica').fillColor(GRAY)
-          .text(label, MX, ry, { width: COL, lineBreak: false });
-        const vh = doc.heightOfString(value, { width: MW - COL, fontSize: 7.5 });
-        doc.fontSize(7.5).font('Helvetica-Bold').fillColor(NAVY)
-          .text(value, MX + COL, ry, { width: MW - COL });
-        ry += Math.max(13, vh) + 2;
-      };
+      const venue     = data.location || 'To Be Announced';
+      const commaIdx  = venue.indexOf(',');
+      const venueName = commaIdx > -1 ? venue.slice(0, commaIdx) : venue;
+      const venueAddr = commaIdx > -1 ? venue.slice(commaIdx) : '';
+      const valX      = MX + LBL_W;
+      const valW      = MW - LBL_W;
 
-      row('DATE:',   fmtDate(data.eventDate));
-      row('VENUE:',  data.location || 'To Be Announced');
-      row('HOLDER:', data.userName);
-      row('TIER:',   data.tierName);
-
-      // Performers
-      const performers = data.performers && data.performers.length > 0 ? data.performers : null;
-      if (performers && ry < H - 40) {
-        doc.fontSize(7.5).font('Helvetica').fillColor(GRAY)
-          .text('PERFORMERS:', MX, ry, { width: MW });
-        ry += 11;
-        for (const p of performers.slice(0, 5)) {
-          if (ry >= H - 30) break;
-          doc.circle(MX + 4, ry + 3, 1.4).fill(NAVY).fillOpacity(1);
-          doc.fontSize(7.5).font('Helvetica').fillColor(NAVY)
-            .text(p.ticketDisplayName, MX + 10, ry, { width: MW - 10 });
-          ry += 12;
-        }
+      // Bold first segment (venue name) then regular for address
+      doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BLACK)
+        .text(venueName, valX, ry, { width: valW, continued: venueAddr.length > 0, lineBreak: venueAddr.length === 0 });
+      if (venueAddr) {
+        doc.font('Helvetica').text(venueAddr, { width: valW });
       }
 
-      // Special additions
+      doc.fontSize(9.5).font('Helvetica');
+      const venueH = doc.heightOfString(venue, { width: valW });
+      ry += Math.max(16, venueH + 2);
+
+      ry += 8;
+
+      // ── PERFORMERS section ───────────────────────────────────────────────
+      const performers = data.performers && data.performers.length > 0 ? data.performers : null;
+      if (performers && ry < H - 55) {
+        doc.fontSize(13).font('Helvetica').fillColor(BLACK)
+          .text('PERFORMERS:', MX, ry, { width: MW });
+        ry += 18;
+
+        for (const p of performers.slice(0, 6)) {
+          if (ry >= H - 42) break;
+          doc.circle(MX + 5, ry + 5.5, 2.5).fillOpacity(1).fill(BLACK);
+          doc.fontSize(10).font('Helvetica').fillColor(BLACK)
+            .text(p.ticketDisplayName, MX + 14, ry, { width: MW - 14 });
+          ry += 15;
+        }
+        ry += 6;
+      }
+
+      // ── Special additions — plain text lines ─────────────────────────────
       const specials = data.specialAdditions && data.specialAdditions.length > 0 ? data.specialAdditions : null;
       if (specials && ry < H - 40) {
-        ry += 2;
-        doc.fontSize(7.5).font('Helvetica').fillColor(GRAY)
-          .text('SPECIAL:', MX, ry, { width: MW });
-        ry += 11;
         for (const s of specials.slice(0, 3)) {
-          if (ry >= H - 30) break;
-          doc.circle(MX + 4, ry + 3, 1.4).fill(RED).fillOpacity(1);
-          doc.fontSize(7.5).font('Helvetica').fillColor(NAVY)
-            .text(s.ticketDisplayText, MX + 10, ry, { width: MW - 10 });
-          ry += 12;
+          if (ry >= H - 38) break;
+          doc.fontSize(9.5).font('Helvetica').fillColor(BLACK)
+            .text(s.ticketDisplayText, MX, ry, { width: MW });
+          doc.fontSize(9.5).font('Helvetica');
+          const sh = doc.heightOfString(s.ticketDisplayText, { width: MW });
+          ry += Math.max(14, sh + 2);
         }
       }
 
-      // T&C footer
-      doc.fontSize(5.8).font('Helvetica').fillColor(GRAY)
-        .text('For Terms and Conditions, visit: banglafest.uk/terms', MX, H - 14, { width: MW });
+      // ── Horizontal rule before T&C ───────────────────────────────────────
+      doc.moveTo(MX, H - 23).lineTo(MX + MW, H - 23)
+        .strokeColor(LGRAY).lineWidth(0.5).stroke();
 
-      // ════════════════ PERFORATED TEAR LINE (x ≈ 416) ═════════════════════
-      const PX = MX + MW + 5;  // ≈ 416
+      // ── T&C footer ───────────────────────────────────────────────────────
+      doc.fontSize(7).font('Helvetica').fillColor(GRAY)
+        .text('For Terms and Conditions, visit:banglafest.co.uk/terms', MX, H - 18, { width: MW });
 
-      doc.circle(PX, 0, 8).fill(WHITE);
-      doc.circle(PX, H, 8).fill(WHITE);
-      doc.moveTo(PX, 6).lineTo(PX, H - 6)
-        .dash(4, { space: 3.5 }).strokeColor('#aaa').lineWidth(0.9).stroke().undash();
+      // ════════════════ RIGHT — QR stub (x 424–581) ════════════════════════
+      const RX     = DIV_X + 8;          // 424
+      const UUID_W = 12;                 // rotated UUID strip on far right
+      const RW     = W - RX - UUID_W - 2; // ≈ 157
 
-      // ════════════════ RIGHT — Stub (x: 422–592) ══════════════════════════
-      const SX    = PX + 6;        // ≈ 422
-      const BAR_X = W - 26;        // 569  — barcode strip start
-      const SIW   = BAR_X - SX - 3; // stub inner width ≈ 140
-
-      // ── QR code ──────────────────────────────────────────────────────────
-      const QRS = 102;
-      const QRX = SX + Math.floor((SIW - QRS) / 2);
-      const QRY = 10;
-
-      doc.roundedRect(QRX - 2, QRY - 2, QRS + 4, QRS + 4, 3)
-        .fill(WHITE).strokeColor(LGRAY).lineWidth(0.5).stroke();
+      // Large QR code — centred horizontally
+      const QRS = 140;
+      const QRX = RX + Math.round((RW - QRS) / 2);
+      const QRY = 14;
       doc.image(qrBuffer!, QRX, QRY, { width: QRS, height: QRS });
 
-      // ── Unique ticket ID ──────────────────────────────────────────────────
-      const yr    = data.eventDate.getFullYear();
-      const fmtId = `BF${yr}-${data.ticketId.slice(0, 8).toUpperCase()}`;
+      // "S C A N   A T   E N T R A N C E"
+      const scanY = QRY + QRS + 10;
+      doc.fontSize(7).font('Helvetica').fillColor(BLACK)
+        .text('S C A N   A T   E N T R A N C E', RX, scanY, { width: RW, align: 'center' });
 
-      doc.fontSize(5.2).font('Helvetica').fillColor(GRAY)
-        .text('UNIQUE TICKET ID:', SX, QRY + QRS + 8, { width: SIW, align: 'center' });
-      doc.fontSize(7).font('Helvetica-Bold').fillColor(NAVY)
-        .text(fmtId, SX, QRY + QRS + 17, { width: SIW, align: 'center' });
+      // "ISSUED [date]"
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(BLACK)
+        .text(`ISSUED ${fmtIssued(data.createdAt)}`, RX, scanY + 14, { width: RW, align: 'center' });
 
-      // ── Stub horizontal divider ───────────────────────────────────────────
-      const DIVY = H - 50;
-      doc.moveTo(SX, DIVY).lineTo(BAR_X - 1, DIVY)
-        .dash(2.5, { space: 2.5 }).strokeColor(LGRAY).lineWidth(0.6).stroke().undash();
-
-      // ── Stub bottom branding ──────────────────────────────────────────────
-      doc.fontSize(5.8).font('Helvetica').fillColor(GRAY)
-        .text('STUB — For Entry Staff', SX, DIVY + 6, { width: SIW, align: 'center' });
-      doc.fontSize(8.5).font('Helvetica-Bold').fillColor(RED)
-        .text('BANGLA FEST', SX, DIVY + 18, { width: SIW, align: 'center' });
-      doc.fontSize(7.5).font('Helvetica-Bold').fillColor(GREEN)
-        .text('& AWARD UK', SX, DIVY + 30, { width: SIW, align: 'center' });
-
-      // ── Barcode strips (deterministic pattern from ticket ID) ─────────────
-      const hex = data.ticketId.replace(/-/g, '');
-      const bars: number[] = [];
-      for (let i = 0; i < hex.length && bars.length < 32; i++) {
-        bars.push((parseInt(hex[i], 16) % 3) + 1); // 1–3 pt wide
-      }
-
-      let bx    = BAR_X;
-      let black = true;
-      const BH  = DIVY - 8;
-      for (const bw of bars) {
-        if (bx + bw > W - 18) break;
-        if (black) doc.rect(bx, 8, bw, BH).fill(BLACK).fillOpacity(1);
-        bx += bw + 1;
-        black = !black;
-      }
-
-      // ── "TKT-XXXX" rotated on far right edge ─────────────────────────────
-      const tktLabel = `TKT-${data.orderId.slice(0, 4).toUpperCase()}`;
-      const rx  = W - 9;
-      const ry2 = (BH / 2) + 8;
+      // ── Rotated full UUID on far-right edge ──────────────────────────────
+      const uuidX = W - 7;
+      const uuidY = H / 2;
       doc.save()
-        .fontSize(6).font('Helvetica-Bold').fillColor(NAVY)
-        .rotate(90, { origin: [rx, ry2] })
-        .text(tktLabel, rx - 18, ry2 - 3, { width: 36, align: 'center', lineBreak: false });
+        .fontSize(5.5)
+        .font('Helvetica')
+        .fillColor(GRAY)
+        .rotate(-90, { origin: [uuidX, uuidY] })
+        .text(data.ticketId.toUpperCase(), uuidX - 110, uuidY - 2, {
+          width: 220,
+          align: 'center',
+          lineBreak: false,
+        });
       doc.restore();
 
       doc.end();
