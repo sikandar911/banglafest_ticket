@@ -17,6 +17,10 @@ import {
   resendOrderTickets,
   bypassBookTicket,
   updateUserRole,
+  listPromoCodes,
+  createPromoCode,
+  togglePromoCode,
+  deletePromoCode,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -363,5 +367,22 @@ router.patch(
   validate,
   updateUserRole
 );
+
+// ─── Promo Codes ──────────────────────────────────────────────────────────────
+router.get('/promo-codes', listPromoCodes);
+
+router.post(
+  '/promo-codes',
+  [
+    body('code').trim().notEmpty().withMessage('Promo code is required.'),
+    body('influencerName').trim().notEmpty().withMessage('Influencer name is required.'),
+    body('eventIds').isArray({ min: 1 }).withMessage('At least one event must be selected.'),
+  ],
+  validate,
+  createPromoCode
+);
+
+router.patch('/promo-codes/:id/toggle', togglePromoCode);
+router.delete('/promo-codes/:id', deletePromoCode);
 
 export default router;

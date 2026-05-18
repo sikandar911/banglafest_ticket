@@ -26,6 +26,7 @@ type TierForm = {
   description: string;
   features: string[];
   maxPerPerson: string;
+  promoDiscountAmount: string;
 };
 
 const emptyEvent: EventForm = {
@@ -45,7 +46,8 @@ const emptyTier: TierForm = {
   totalCapacity: "",
   description: "",
   features: [],
-  maxPerPerson: "1"
+  maxPerPerson: "1",
+  promoDiscountAmount: ""
 };
 
 export function AdminEventsPage() {
@@ -105,6 +107,7 @@ export function AdminEventsPage() {
         totalCapacity: parseInt(data.totalCapacity),
         features: data.features,
         maxPerPerson: parseInt(data.maxPerPerson),
+        promoDiscountAmount: data.promoDiscountAmount ? parseFloat(data.promoDiscountAmount) : undefined,
       }),
     onSuccess: (_, { eventId }) => {
       qc.invalidateQueries({ queryKey: ["events"] });
@@ -122,6 +125,7 @@ export function AdminEventsPage() {
         totalCapacity: parseInt(data.totalCapacity),
         features: data.features,
         maxPerPerson: parseInt(data.maxPerPerson),
+        promoDiscountAmount: data.promoDiscountAmount ? parseFloat(data.promoDiscountAmount) : undefined,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["events"] });
@@ -174,6 +178,7 @@ export function AdminEventsPage() {
       description: tier.description || "",
       features: [...(tier.features || [])],
       maxPerPerson: tier.maxPerPerson.toString(),
+      promoDiscountAmount: tier.promoDiscountAmount ? tier.promoDiscountAmount.toString() : "",
     });
     setCurrentFeature("");
   };
@@ -497,6 +502,9 @@ export function AdminEventsPage() {
                             <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
                               <div>Availability: {tier.availableQty}/{tier.totalCapacity}</div>
                               <div>Max per person: {tier.maxPerPerson}</div>
+                              {tier.promoDiscountAmount ? (
+                                <div>Promo discount: £{Number(tier.promoDiscountAmount).toFixed(2)}</div>
+                              ) : null}
                             </div>
                             {tier.features && tier.features.length > 0 && (
                               <div className="flex flex-wrap gap-1">
@@ -568,6 +576,21 @@ export function AdminEventsPage() {
                               onChange={(e) => setTierForms((p) => ({ 
                                 ...p, 
                                 [event.id]: { ...tierForm, maxPerPerson: e.target.value } 
+                              }))} 
+                            />
+                          </div>
+                          <div>
+                            <label className="label text-xs">Promo Discount (£ off/ticket)</label>
+                            <input 
+                              className="input text-sm" 
+                              placeholder="0.00" 
+                              type="number" 
+                              min="0"
+                              step="0.01"
+                              value={tierForm.promoDiscountAmount} 
+                              onChange={(e) => setTierForms((p) => ({ 
+                                ...p, 
+                                [event.id]: { ...tierForm, promoDiscountAmount: e.target.value } 
                               }))} 
                             />
                           </div>
@@ -709,6 +732,18 @@ export function AdminEventsPage() {
                     min="1"
                     value={editingTierForm.maxPerPerson}
                     onChange={(e) => setEditingTierForm({ ...editingTierForm, maxPerPerson: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">Promo Discount (£ off/ticket)</label>
+                  <input
+                    className="input"
+                    placeholder="0.00"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingTierForm.promoDiscountAmount}
+                    onChange={(e) => setEditingTierForm({ ...editingTierForm, promoDiscountAmount: e.target.value })}
                   />
                 </div>
               </div>

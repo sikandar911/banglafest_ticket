@@ -1,14 +1,22 @@
 ﻿import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, MapPin, ArrowLeft, Minus, Plus } from "lucide-react";
+import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { eventsApi } from "../api/events";
 import { ordersApi } from "../api/orders";
+import { promoApi } from "../api/promo";
 import { PageSpinner } from "../components/ui/Spinner";
 import { AvailabilityBadge } from "../components/ui/Badge";
 import { useAuth } from "../contexts/AuthContext";
+
+interface AppliedPromo {
+  promoCodeId: string;
+  code: string;
+  discountAmount: number;
+  message: string;
+}
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +24,9 @@ export function EventDetailPage() {
   const navigate = useNavigate();
   const [selectedTiers, setSelectedTiers] = useState<Record<string, number>>({});
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -46,6 +57,35 @@ export function EventDetailPage() {
       // Single-tier selection only: clear other tiers when selecting a new one
       setSelectedTiers({ [tierId]: newQty });
     }
+    // Clear applied promo when tier changes
+    setAppliedPromo(null);
+    setPromoInput('');
+  };
+
+  const handleApplyPromo = async () => {
+    const tierId = Object.keys(selectedTiers)[0];
+    if (!tierId || !promoInput.trim()) return;
+    setIsValidatingPromo(true);
+    try {
+      const { data } = await promoApi.validate(promoInput.trim(), tierId);
+      if (data.valid && data.discountAmount !== undefined) {
+        setAppliedPromo({
+          promoCodeId: data.promoCodeId!,
+          code: data.code!,
+          discountAmount: data.discountAmount,
+          message: data.message,
+        });
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || 'Invalid promo code.');
+        setAppliedPromo(null);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? 'Invalid promo code.');
+      setAppliedPromo(null);
+    } finally {
+      setIsValidatingPromo(false);
+    }
   };
 
   const handleCheckout = async () => {
@@ -64,11 +104,16 @@ export function EventDetailPage() {
 
     setIsCheckingOut(true);
     try {
-      const { data: orderData } = await ordersApi.create({ tierId, quantity });
+      const { data: orderData } = await ordersApi.create({
+        tierId,
+        quantity,
+        promoCode: appliedPromo?.code,
+      });
       navigate('/checkout', {
         state: {
           orderId: orderData.orderId,
           totalAmount: orderData.totalAmount,
+          discountAmount: orderData.discountAmount ?? 0,
           tierName: tier?.name ?? '',
           eventTitle: event.title,
           quantity,
@@ -91,6 +136,11 @@ export function EventDetailPage() {
     const tier = event.ticketTiers.find((t: any) => t.id === tierId);
     return sum + (tier ? tier.price * qty : 0);
   }, 0);
+
+  const promoDiscount = appliedPromo
+    ? appliedPromo.discountAmount * Object.values(selectedTiers).reduce((a, b) => a + b, 0)
+    : 0;
+  const finalPrice = Math.max(0, totalPrice - promoDiscount);
 
   const totalTickets = Object.values(selectedTiers).reduce((sum, qty) => sum + qty, 0);
 
@@ -252,9 +302,61 @@ export function EventDetailPage() {
                   <span className="font-semibold text-white">{totalTickets}</span>
                 </div>
 
+                {/* Promo Code */}
+                <div className="mb-4">
+                  {!appliedPromo ? (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                        <input
+                          className="w-full rounded-lg bg-gray-800 border border-gray-700 pl-8 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 uppercase tracking-widest"
+                          placeholder="Promo code"
+                          value={promoInput}
+                          onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
+                        />
+                      </div>
+                      <button
+                        onClick={handleApplyPromo}
+                        disabled={isValidatingPromo || !promoInput.trim()}
+                        className="rounded-lg bg-gray-700 hover:bg-gray-600 px-3 py-2 text-xs font-medium text-white disabled:opacity-50 transition-colors"
+                      >
+                        {isValidatingPromo ? '…' : 'Apply'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between rounded-lg bg-green-950 border border-green-800 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                        <span className="text-xs text-green-300 font-mono font-semibold">{appliedPromo.code}</span>
+                        <span className="text-xs text-green-400">−£{promoDiscount.toFixed(2)}</span>
+                      </div>
+                      <button
+                        onClick={() => { setAppliedPromo(null); setPromoInput(''); }}
+                        className="text-green-600 hover:text-green-400"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {promoDiscount > 0 && (
+                  <div className="flex items-center justify-between mb-2 text-sm">
+                    <span className="text-gray-400">Subtotal</span>
+                    <span className="text-gray-400">£{totalPrice.toFixed(2)}</span>
+                  </div>
+                )}
+                {promoDiscount > 0 && (
+                  <div className="flex items-center justify-between mb-2 text-sm">
+                    <span className="text-green-400">Promo discount</span>
+                    <span className="text-green-400">−£{promoDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between mb-6">
                   <span className="text-white font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-primary-400">£{totalPrice.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-primary-400">£{finalPrice.toFixed(2)}</span>
                 </div>
 
                 <button

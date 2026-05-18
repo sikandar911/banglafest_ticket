@@ -101,6 +101,25 @@ export async function deleteEvent(req: Request, res: Response, next: NextFunctio
       res.status(404).json({ error: 'Event not found.' });
       return;
     }
+
+    // Get all tier IDs for this event
+    const tiers = await prisma.ticketTier.findMany({ where: { eventId: id }, select: { id: true } });
+    const tierIds = tiers.map((t) => t.id);
+
+    if (tierIds.length > 0) {
+      // Get order IDs linked to these tiers
+      const orders = await prisma.order.findMany({ where: { tierId: { in: tierIds } }, select: { id: true } });
+      const orderIds = orders.map((o) => o.id);
+
+      if (orderIds.length > 0) {
+        // Delete tickets and order items first (child records)
+        await prisma.ticket.deleteMany({ where: { orderId: { in: orderIds } } });
+        await prisma.orderItem.deleteMany({ where: { orderId: { in: orderIds } } });
+        await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+      }
+    }
+
+    // Now delete the event (cascades to tiers via schema)
     await prisma.event.delete({ where: { id } });
     res.json({ message: 'Event deleted.' });
   } catch (err) {
@@ -112,7 +131,7 @@ export async function deleteEvent(req: Request, res: Response, next: NextFunctio
 export async function createTier(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id: eventId } = req.params;
-    const { name, description, price, totalCapacity, features, maxPerPerson } = req.body;
+    const { name, description, price, totalCapacity, features, maxPerPerson, promoDiscountAmount } = req.body;
 
     if (!name || !String(name).trim()) {
       res.status(400).json({ error: 'Tier name is required.' });
@@ -150,12 +169,15 @@ export async function createTier(req: Request, res: Response, next: NextFunction
         availableQty: totalCapacity,
         features: features && features.length > 0 ? JSON.stringify(features) : null,
         maxPerPerson: maxPerPerson || 1,
+        promoDiscountAmount: promoDiscountAmount != null && promoDiscountAmount !== '' ? promoDiscountAmount : null,
       },
     });
 
     res.status(201).json({ 
       tier: {
         ...tier,
+        price: Number(tier.price),
+        promoDiscountAmount: tier.promoDiscountAmount ? Number(tier.promoDiscountAmount) : null,
         features: tier.features ? JSON.parse(tier.features) : [],
       }
     });
@@ -168,7 +190,7 @@ export async function createTier(req: Request, res: Response, next: NextFunction
 export async function updateTier(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const { name, description, price, totalCapacity, features, maxPerPerson } = req.body;
+    const { name, description, price, totalCapacity, features, maxPerPerson, promoDiscountAmount } = req.body;
 
     const existing = await prisma.ticketTier.findUnique({ where: { id } });
     if (!existing) {
@@ -188,6 +210,9 @@ export async function updateTier(req: Request, res: Response, next: NextFunction
       updateData.features = features && features.length > 0 ? JSON.stringify(features) : null;
     }
     if (maxPerPerson !== undefined) updateData.maxPerPerson = maxPerPerson;
+    if (promoDiscountAmount !== undefined) {
+      updateData.promoDiscountAmount = promoDiscountAmount !== null && promoDiscountAmount !== '' ? promoDiscountAmount : null;
+    }
 
     const tier = await prisma.ticketTier.update({
       where: { id },
@@ -197,6 +222,8 @@ export async function updateTier(req: Request, res: Response, next: NextFunction
     res.json({ 
       tier: {
         ...tier,
+        price: Number(tier.price),
+        promoDiscountAmount: tier.promoDiscountAmount ? Number(tier.promoDiscountAmount) : null,
         features: tier.features ? JSON.parse(tier.features) : [],
       }
     });
@@ -636,6 +663,117 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     });
 
     res.json({ user: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── Promo Codes ──────────────────────────────────────────────────────────────
+
+// GET /api/admin/promo-codes
+export async function listPromoCodes(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const promoCodes = await prisma.promoCode.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        events: {
+          include: {
+            event: { select: { id: true, title: true } },
+          },
+        },
+        _count: { select: { orders: true } },
+      },
+    });
+
+    res.json({ promoCodes });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/admin/promo-codes
+export async function createPromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { code, influencerName, socialMedia, eventIds } = req.body;
+
+    if (!code || !String(code).trim()) {
+      res.status(400).json({ error: 'Promo code is required.' });
+      return;
+    }
+    if (!influencerName || !String(influencerName).trim()) {
+      res.status(400).json({ error: 'Influencer name is required.' });
+      return;
+    }
+    if (!Array.isArray(eventIds) || eventIds.length === 0) {
+      res.status(400).json({ error: 'At least one event must be selected.' });
+      return;
+    }
+
+    const normalizedCode = String(code).trim().toUpperCase();
+
+    const existing = await prisma.promoCode.findUnique({ where: { code: normalizedCode } });
+    if (existing) {
+      res.status(409).json({ error: 'A promo code with this code already exists.' });
+      return;
+    }
+
+    const promoCode = await prisma.promoCode.create({
+      data: {
+        code: normalizedCode,
+        influencerName: String(influencerName).trim(),
+        socialMedia: socialMedia ? String(socialMedia).trim() : null,
+        events: {
+          create: (eventIds as string[]).map((eventId) => ({ eventId })),
+        },
+      },
+      include: {
+        events: {
+          include: {
+            event: { select: { id: true, title: true } },
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ promoCode });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/admin/promo-codes/:id/toggle
+export async function togglePromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.promoCode.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: 'Promo code not found.' });
+      return;
+    }
+
+    const updated = await prisma.promoCode.update({
+      where: { id },
+      data: { isActive: !existing.isActive },
+    });
+
+    res.json({ promoCode: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/admin/promo-codes/:id
+export async function deletePromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.promoCode.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: 'Promo code not found.' });
+      return;
+    }
+
+    await prisma.promoCode.delete({ where: { id } });
+    res.json({ message: 'Promo code deleted.' });
   } catch (err) {
     next(err);
   }
