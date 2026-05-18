@@ -1,19 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Download, CheckCircle2, Clock, QrCode, RefreshCw } from 'lucide-react';
+import { Download, CheckCircle2, Clock, QrCode, RefreshCw, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { userApi } from '../../api/user';
 import { PageSpinner } from '../../components/ui/Spinner';
 
-interface MyTicket {
-  id: string;
-  status: 'VALID' | 'CHECKED_IN' | 'CANCELLED';
-  scannedAt?: string;
-  createdAt: string;
-  qrCode: string;
-  event: { id: string; title: string; startTime: string; endTime: string; location?: string; imageUrl?: string };
-  tier: { name: string; price: number; description?: string; features?: string[] };
-  order: { id: string; status: string; totalAmount: number; isBypassed?: boolean };
-}
+// Type for ticket from API response  
+type MyTicket = Awaited<ReturnType<typeof userApi.getMyTickets>>['data']['tickets'][0];
 
 export function MyTicketsPage() {
   const { data, isLoading, dataUpdatedAt } = useQuery({
@@ -24,12 +16,21 @@ export function MyTicketsPage() {
     refetchIntervalInBackground: false,
   });
 
-  const downloadPdf = (ticketId: string) => {
+  const printAllPdf = () => {
+    const token = localStorage.getItem('accessToken') ?? '';
+    const base  = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    window.open(
+      `${base}/api/users/me/tickets/print-all?token=${encodeURIComponent(token)}`,
+      '_blank'
+    );
+  };
+
+  const downloadTicket = (ticketId: string) => {
     // Use direct URL with token so IDM and browser both download correctly
     const token = localStorage.getItem('accessToken') ?? '';
     const base  = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     window.open(
-      `${base}/api/users/me/tickets/${ticketId}/pdf?token=${encodeURIComponent(token)}`,
+      `${base}/api/users/me/tickets/${ticketId}/png?token=${encodeURIComponent(token)}`,
       '_blank'
     );
   };
@@ -41,12 +42,23 @@ export function MyTicketsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">My Tickets</h2>
-        {dataUpdatedAt > 0 && (
+        <div className="flex items-center gap-3">
+          {tickets.length > 0 && (
+            <button
+              onClick={printAllPdf}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Print All
+            </button>
+          )}
+          {dataUpdatedAt > 0 && (
           <span className="flex items-center gap-1.5 text-xs text-gray-500">
             <RefreshCw className="w-3 h-3" />
             Synced {format(new Date(dataUpdatedAt), 'h:mm:ss a')}
           </span>
-        )}
+          )}
+        </div>
       </div>
 
       {tickets.length === 0 ? (
@@ -58,7 +70,7 @@ export function MyTicketsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {tickets.map((ticket) => (
-            <TicketCard key={ticket.id} ticket={ticket} onDownload={downloadPdf} />
+            <TicketCard key={ticket.id} ticket={ticket} onDownload={downloadTicket} />
           ))}
         </div>
       )}
@@ -169,7 +181,7 @@ function TicketCard({ ticket, onDownload }: { ticket: MyTicket; onDownload: (id:
             onClick={() => onDownload(ticket.id)}
             className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 font-medium transition-colors"
           >
-            <Download className="w-3.5 h-3.5" /> Download PDF
+            <Download className="w-3.5 h-3.5" /> Download Ticket
           </button>
         )}
         {isCheckedIn && (

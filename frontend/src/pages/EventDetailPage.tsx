@@ -100,7 +100,7 @@ export function EventDetailPage() {
     }
 
     const [[tierId, quantity]] = Object.entries(selectedTiers);
-    const tier = event.ticketTiers.find((t: any) => t.id === tierId);
+    const tier = event!.ticketTiers.find((t: any) => t.id === tierId);
 
     setIsCheckingOut(true);
     try {
@@ -115,7 +115,7 @@ export function EventDetailPage() {
           totalAmount: orderData.totalAmount,
           discountAmount: orderData.discountAmount ?? 0,
           tierName: tier?.name ?? '',
-          eventTitle: event.title,
+          eventTitle: event!.title,
           quantity,
         },
       });
