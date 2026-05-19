@@ -174,11 +174,16 @@ async function fulfillOrder(
   },
   paymentIntentId?: string
 ): Promise<void> {
-  const ticketData = Array.from({ length: order!.quantity }).map(() => ({
+  const attendeeNamesArr: string[] = order!.attendeeNames
+    ? (JSON.parse(order!.attendeeNames) as string[])
+    : [];
+
+  const ticketData = Array.from({ length: order!.quantity }, (_, i) => ({
     orderId: order!.id,
     ticketTierId: order!.tierId,
     userId: order!.userId,
     status: 'VALID' as const,
+    attendeeName: attendeeNamesArr[i] || null,
   }));
 
   const tickets = await prisma.$transaction(async (tx) => {
@@ -203,6 +208,7 @@ async function fulfillOrder(
     tickets.map((ticket) =>
       generateTicketPdf({
         ticketId: ticket.id,
+        attendeeName: ticket.attendeeName ?? undefined,
         userName: order!.user.name,
         userEmail: order!.user.email,
         eventTitle: order!.ticketTier.event.title,

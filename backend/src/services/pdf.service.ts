@@ -19,6 +19,7 @@ export interface TicketPdfData {
   ticketId: string;
   userName: string;
   userEmail: string;
+  attendeeName?: string;
   eventTitle: string;
   tierName: string;
   eventDate: Date;
@@ -95,15 +96,16 @@ function truncateText(text: string, maxLength: number): string {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
 }
 
-function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfData, qrBuffer: Buffer): void {
+function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfData, qrBuffer: Buffer, offsetY: number = 0): void {
   const WHITE = '#ffffff';
   const BLACK = '#000000';
   const GRAY = '#666666';
   const LGRAY = '#cccccc';
 
-  doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT).fill(WHITE);
+  // Draw background and border at offsetY
+  doc.rect(0, offsetY, PAGE_WIDTH, PAGE_HEIGHT).fill(WHITE);
 
-  doc.roundedRect(2, 2, PAGE_WIDTH - 4, PAGE_HEIGHT - 4, 8)
+  doc.roundedRect(2, offsetY + 2, PAGE_WIDTH - 4, PAGE_HEIGHT - 4, 8)
     .dash(5, { space: 3 })
     .strokeColor('#444444')
     .lineWidth(1.3)
@@ -112,19 +114,19 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
 
   const LW = 215;
   if (LOGO_PATH) {
-    doc.image(LOGO_PATH, 0, 0, {
+    doc.image(LOGO_PATH, 0, offsetY, {
       fit: [LW, PAGE_HEIGHT],
       align: 'center',
       valign: 'center',
     });
   } else {
-    doc.rect(0, 0, LW, PAGE_HEIGHT).fill('#f6f6f6');
+    doc.rect(0, offsetY, LW, PAGE_HEIGHT).fill('#f6f6f6');
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#222222')
-      .text('BANGLAFEST', 24, PAGE_HEIGHT / 2 - 12, { width: LW - 48, align: 'center' });
+      .text('BANGLAFEST', 24, offsetY + PAGE_HEIGHT / 2 - 12, { width: LW - 48, align: 'center' });
   }
 
   const DIV_X = 395;
-  doc.moveTo(DIV_X, 16).lineTo(DIV_X, PAGE_HEIGHT - 16)
+  doc.moveTo(DIV_X, offsetY + 16).lineTo(DIV_X, offsetY + PAGE_HEIGHT - 16)
     .strokeColor(LGRAY)
     .lineWidth(0.8)
     .stroke();
@@ -132,16 +134,16 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
   const MX = 222;
   const MW = DIV_X - MX - 3;
   const LBL_W = 52;
-  let ry = 14;
+  let ry = offsetY + 14;
 
-  doc.rect(MX, ry + 1, 3.2, 32).fill(BRAND_ORANGE);
+  doc.rect(MX, ry - 3, 3.2, 22).fill(BRAND_ORANGE);
   doc.fontSize(13).font('Helvetica-Bold').fillColor(BLACK)
     .text('OFFICIAL ENTRY PASS', MX + 10, ry, { width: MW - 10 });
   ry += 30;
 
   doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
     .text('DATE:', MX, ry, { width: LBL_W, lineBreak: false });
-  doc.fontSize(10.2).font('Times-Roman').fillColor(BLACK)
+  doc.fontSize(10.2).font('Helvetica-Bold').fillColor(BLACK)
     .text(fmtDate(data.eventDate), MX + LBL_W, ry, { width: MW - LBL_W });
   ry += 16;
 
@@ -150,36 +152,31 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
 
   const venue = data.location || 'To Be Announced';
   const commaIdx = venue.indexOf(',');
-  const venueName = commaIdx > -1 ? venue.slice(0, commaIdx) : venue;
-  const venueAddr = commaIdx > -1 ? venue.slice(commaIdx) : '';
+  const venueName = commaIdx > -1 ? venue.slice(0, commaIdx).trim() : venue;
+  const venueCity = commaIdx > -1 ? venue.slice(commaIdx + 1).trim() : '';
   const valX = MX + LBL_W;
   const valW = MW - LBL_W;
 
   doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BLACK)
-    .text(venueName, valX, ry, { width: valW, continued: venueAddr.length > 0, lineBreak: venueAddr.length === 0 });
-  if (venueAddr) {
-    doc.font('Helvetica').fillColor(GRAY).text(venueAddr, { width: valW });
+    .text(venueName, valX, ry, { width: valW, lineBreak: false });
+  if (venueCity) {
+    doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BLACK)
+      .text(venueCity, valX, ry + 13, { width: valW, lineBreak: false });
+    ry += 28;
+  } else {
+    ry += 16;
   }
-
-  doc.fontSize(9.5).font('Helvetica');
-  const venueH = doc.heightOfString(venue, { width: valW });
-  ry += Math.max(16, venueH + 2);
-
-  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
-    .text('TIER:', MX, ry, { width: LBL_W, lineBreak: false });
-  doc.fontSize(10).font('Helvetica-Bold').fillColor(BLACK)
-    .text(data.tierName, MX + LBL_W, ry, { width: MW - LBL_W });
 
   ry += 22;
 
   const performers = data.performers && data.performers.length > 0 ? data.performers : null;
-  if (performers && ry < PAGE_HEIGHT - 55) {
+  if (performers && ry < offsetY + PAGE_HEIGHT - 55) {
     doc.fontSize(14).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
       .text('PERFORMERS:', MX, ry, { width: MW });
     ry += 18;
 
     for (const performer of performers.slice(0, 6)) {
-      if (ry >= PAGE_HEIGHT - 42) break;
+      if (ry >= offsetY + PAGE_HEIGHT - 42) break;
       doc.circle(MX + 5, ry + 5.5, 2.5).fillOpacity(1).fill(BRAND_ORANGE);
       doc.fontSize(10).font('Helvetica').fillColor('#1a1a1a')
         .text(performer.ticketDisplayName, MX + 14, ry, { width: MW - 14 });
@@ -189,9 +186,9 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
   }
 
   const specials = data.specialAdditions && data.specialAdditions.length > 0 ? data.specialAdditions : null;
-  if (specials && ry < PAGE_HEIGHT - 40) {
+  if (specials && ry < offsetY + PAGE_HEIGHT - 40) {
     for (const special of specials.slice(0, 3)) {
-      if (ry >= PAGE_HEIGHT - 38) break;
+      if (ry >= offsetY + PAGE_HEIGHT - 38) break;
       doc.fontSize(10).font('Helvetica').fillColor('#1a1a1a')
         .text(special.ticketDisplayText, MX, ry, { width: MW });
       doc.fontSize(9.5).font('Helvetica');
@@ -200,11 +197,11 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
     }
   }
 
-  doc.moveTo(MX, PAGE_HEIGHT - 23).lineTo(MX + MW, PAGE_HEIGHT - 23)
+  doc.moveTo(MX, offsetY + PAGE_HEIGHT - 23).lineTo(MX + MW, offsetY + PAGE_HEIGHT - 23)
     .strokeColor(BRAND_ORANGE).lineWidth(1).stroke();
 
   doc.fontSize(7).font('Helvetica').fillColor(GRAY)
-    .text('Terms & Conditions: banglafest.co.uk/terms', MX, PAGE_HEIGHT - 18, { width: MW });
+    .text('Terms & Conditions: banglafest.co.uk/terms', MX, offsetY + PAGE_HEIGHT - 18, { width: MW });
 
   const RX = DIV_X + 10;
   const UUID_W = 12;
@@ -212,7 +209,7 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
 
   const QRS = 145;
   const QRX = RX + Math.round((RW - QRS) / 2);
-  const QRY = 12;
+  const QRY = offsetY + 12;
 
   doc.rect(QRX - 5, QRY - 5, QRS + 10, QRS + 10)
     .lineWidth(1)
@@ -228,17 +225,20 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
     .text(`ISSUED ${fmtIssued(data.createdAt)}`, RX, scanY + 14, { width: RW, align: 'center' });
 
   doc.fontSize(8.5).font('Helvetica').fillColor('#1a1a1a')
-    .text(`FAN: ${data.userName}`, RX, scanY + 31, { width: RW, align: 'center' });
+    .text(`FAN: ${data.attendeeName || data.userName}`, RX, scanY + 31, { width: RW, align: 'center' });
 
-  const uuidX = PAGE_WIDTH - 7;
-  const uuidY = PAGE_HEIGHT / 2;
+  doc.fontSize(8.5).font('Helvetica').fillColor('#1a1a1a')
+    .text(data.tierName, RX, scanY + 42, { width: RW, align: 'center' });
+
+  const uuidX = PAGE_WIDTH - 14;
+  const uuidCenterY = QRY + QRS / 2;
   doc.save()
-    .fontSize(5.5)
+    .fontSize(7)
     .font('Helvetica')
     .fillColor(BRAND_ORANGE)
-    .rotate(-90, { origin: [uuidX, uuidY] })
-    .text(data.ticketId.toUpperCase(), uuidX - 105, uuidY - 2, {
-      width: 220,
+    .rotate(-90, { origin: [uuidX, uuidCenterY] })
+    .text(data.ticketId.toUpperCase(), uuidX - QRS / 2, uuidCenterY - 2, {
+      width: QRS,
       align: 'center',
       lineBreak: false,
     });
@@ -254,7 +254,7 @@ export async function generateTicketPdf(data: TicketPdfData): Promise<Buffer> {
       doc.on('data', (c: Buffer) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
-      drawTicketPage(doc, data, qrBuffer);
+      drawTicketPage(doc, data, qrBuffer, 0);
       doc.end();
     } catch (err) {
       reject(err);
@@ -270,7 +270,13 @@ export async function generateTicketsPdf(dataList: TicketPdfData[]): Promise<Buf
   const qrBuffers = await Promise.all(dataList.map((data) => fetchQrBuffer(data.ticketId)));
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: [PAGE_WIDTH, PAGE_HEIGHT], margin: 0 });
+    const A4_WIDTH = 595;
+    const A4_HEIGHT = 842;
+    const TICKET_HEIGHT = PAGE_HEIGHT; // 255
+    const TICKET_SPACING = 12;
+    const TICKETS_PER_PAGE = 3;
+
+    const doc = new PDFDocument({ size: [A4_WIDTH, A4_HEIGHT], margin: 0 });
     const chunks: Buffer[] = [];
 
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -278,10 +284,19 @@ export async function generateTicketsPdf(dataList: TicketPdfData[]): Promise<Buf
     doc.on('error', reject);
 
     dataList.forEach((data, index) => {
-      if (index > 0) {
-        doc.addPage({ size: [PAGE_WIDTH, PAGE_HEIGHT], margin: 0 });
+      const pageIndex = Math.floor(index / TICKETS_PER_PAGE);
+      const ticketIndexOnPage = index % TICKETS_PER_PAGE;
+
+      // Add new page if needed
+      if (index > 0 && ticketIndexOnPage === 0) {
+        doc.addPage({ size: [A4_WIDTH, A4_HEIGHT], margin: 0 });
       }
-      drawTicketPage(doc, data, qrBuffers[index]);
+
+      // Calculate offset Y for this ticket on the page
+      const offsetY = TICKET_SPACING + ticketIndexOnPage * (TICKET_HEIGHT + TICKET_SPACING);
+
+      // Draw the ticket at this offset
+      drawTicketPage(doc, data, qrBuffers[index], offsetY);
     });
 
     doc.end();
@@ -337,15 +352,12 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
 
   <text x="222" y="74" fill="${BRAND_ORANGE}" font-size="9.5" font-family="Arial" font-weight="700">VENUE:</text>
   <text x="274" y="74" fill="#000" font-size="9.5" font-family="Arial" font-weight="700">${xmlEscape(truncateText(venueName, 24))}</text>
-  <text x="274" y="89" fill="#666666" font-size="9" font-family="Arial">${xmlEscape(truncateText(venueCity, 30))}</text>
+  <text x="274" y="89" fill="#000" font-size="9" font-family="Arial" font-weight="700">${xmlEscape(truncateText(venueCity, 30))}</text>
 
-  <text x="222" y="106" fill="${BRAND_ORANGE}" font-size="9.5" font-family="Arial" font-weight="700">TIER:</text>
-  <text x="274" y="106" fill="#000" font-size="10" font-family="Arial" font-weight="700">${xmlEscape(truncateText(data.tierName, 26))}</text>
-
-  <text x="222" y="128" fill="${BRAND_ORANGE}" font-size="14" font-family="Arial" font-weight="700">PERFORMERS:</text>
+  <text x="222" y="106" fill="${BRAND_ORANGE}" font-size="14" font-family="Arial" font-weight="700">PERFORMERS:</text>
 
   ${performerLines.map((line, index) => {
-    const y = 146 + index * 14;
+    const y = 120 + index * 14;
     return `<circle cx="227" cy="${y - 4}" r="2.5" fill="${BRAND_ORANGE}"/><text x="236" y="${y}" fill="#1a1a1a" font-size="10" font-family="Arial">${xmlEscape(line)}</text>`;
   }).join('')}
 
@@ -360,7 +372,7 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
 
   <text x="496" y="176" fill="${BRAND_ORANGE}" font-size="7.3" text-anchor="middle" font-family="Arial" font-weight="700">SCAN AT ENTRANCE</text>
   <text x="496" y="191" fill="#000" font-size="10" text-anchor="middle" font-family="Arial" font-weight="700">ISSUED ${xmlEscape(fmtIssued(data.createdAt))}</text>
-  <text x="496" y="208" fill="#1a1a1a" font-size="8.5" text-anchor="middle" font-family="Arial">FAN: ${xmlEscape(truncateText(data.userName, 22))}</text>
+  <text x="496" y="208" fill="#1a1a1a" font-size="8.5" text-anchor="middle" font-family="Arial">FAN: ${xmlEscape(truncateText(data.attendeeName || data.userName, 22))}</text>
   <text x="496" y="220" fill="#1a1a1a" font-size="8" text-anchor="middle" font-family="Arial">${xmlEscape(truncateText(data.tierName, 20))}</text>
 
   <g transform="translate(585 84.5) rotate(-90)">

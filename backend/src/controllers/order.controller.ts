@@ -139,11 +139,16 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
 
     // Atomic status transition — prevents double-confirmation if webhook and
     // frontend confirmOrder race each other
-    const ticketData = Array.from({ length: order.quantity }).map(() => ({
+    const attendeeNamesArr: string[] = order.attendeeNames
+      ? (JSON.parse(order.attendeeNames) as string[])
+      : [];
+
+    const ticketData = Array.from({ length: order.quantity }, (_, i) => ({
       orderId: order.id,
       ticketTierId: order.tierId,
       userId: order.userId,
       status: 'VALID' as const,
+      attendeeName: attendeeNamesArr[i] || null,
     }));
 
     const tickets = await prisma.$transaction(async (tx) => {
@@ -164,6 +169,7 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
       tickets.map((ticket) =>
         generateTicketPdf({
           ticketId: ticket.id,
+          attendeeName: ticket.attendeeName ?? undefined,
           userName: order.user.name,
           userEmail: order.user.email,
           eventTitle: order.ticketTier.event.title,
@@ -191,6 +197,110 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
     );
 
     res.json({ orderId: order.id, message: 'Order confirmed.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/orders/:id/attendee-names
+// Stores attendee names for each ticket slot in a PENDING order.
+// Must be called before payment. Names are optional per slot (empty string = use account name).
+export async function setAttendeeNames(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { names } = req.body;
+
+    if (!Array.isArray(names)) {
+      res.status(400).json({ error: 'names must be an array of strings.' });
+      return;
+    }
+
+    const order = await prisma.order.findUnique({ where: { id } });
+
+    if (!order) {
+      res.status(404).json({ error: 'Order not found.' });
+      return;
+    }
+
+    if (order.userId !== req.user!.id && order.salesExecutiveId !== req.user!.id) {
+      res.status(403).json({ error: 'Access denied.' });
+      return;
+    }
+
+    if (order.status !== 'PENDING' && order.status !== 'PAID') {
+      res.status(400).json({ error: 'Attendee names can only be set for pending or paid orders.' });
+      return;
+    }
+
+    // Clamp to order quantity, sanitise each name
+    const sanitised = Array.from({ length: order.quantity }, (_, i) => {
+      const raw = names[i];
+      return typeof raw === 'string' ? raw.trim().slice(0, 100) : '';
+    });
+
+    await prisma.order.update({
+      where: { id },
+      data: { attendeeNames: JSON.stringify(sanitised) },
+    });
+
+    // For PAID orders (sales flow): tickets already exist — update attendeeName on each
+    // and send confirmation email with correct names.
+    if (order.status === 'PAID') {
+      const tickets = await prisma.ticket.findMany({
+        where: { orderId: order.id, status: { not: 'CANCELLED' } },
+        include: {
+          user: { select: { name: true, email: true } },
+          ticketTier: { include: { event: true } },
+        },
+      });
+
+      // Update each ticket's attendeeName field
+      await Promise.all(
+        tickets.map((ticket, i) =>
+          prisma.ticket.update({
+            where: { id: ticket.id },
+            data: { attendeeName: sanitised[i] || null },
+          })
+        )
+      );
+
+      // Generate PDFs and send confirmation email (best-effort)
+      if (tickets.length > 0) {
+        const firstTicket = tickets[0];
+        const pdfBuffers = await Promise.all(
+          tickets.map((ticket, i) =>
+            generateTicketPdf({
+              ticketId: ticket.id,
+              attendeeName: sanitised[i] || undefined,
+              userName: ticket.user.name,
+              userEmail: ticket.user.email,
+              eventTitle: ticket.ticketTier.event.title,
+              tierName: ticket.ticketTier.name,
+              eventDate: ticket.ticketTier.event.startTime,
+              location: ticket.ticketTier.event.location ?? '',
+              orderId: order.id,
+              createdAt: ticket.createdAt,
+              features: ticket.ticketTier.features ? JSON.parse(ticket.ticketTier.features as string) : undefined,
+              performers: ticket.ticketTier.event.performers ? JSON.parse(ticket.ticketTier.event.performers as string) : undefined,
+              specialAdditions: ticket.ticketTier.event.specialAdditions ? JSON.parse(ticket.ticketTier.event.specialAdditions as string) : undefined,
+            })
+          )
+        );
+
+        sendTicketConfirmationEmail(
+          firstTicket.user.email,
+          firstTicket.user.name,
+          tickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
+          {
+            eventTitle: firstTicket.ticketTier.event.title,
+            tierName: firstTicket.ticketTier.name,
+            eventDate: firstTicket.ticketTier.event.startTime,
+          }
+        ).catch((err) => console.error('[setAttendeeNames] Failed to send ticket email:', err));
+      }
+    }
+
+    res.json({ message: 'Attendee names saved.' });
   } catch (err) {
     next(err);
   }

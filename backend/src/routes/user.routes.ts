@@ -4,11 +4,11 @@ import { getMyTickets, getMyOrders, downloadTicketPdf, downloadTicketPng, downlo
 
 const router = Router();
 
-// PDF download must be registered BEFORE router.use(authenticate) so the
-// controller can handle auth itself via either header or ?token= query param.
+// Specific routes MUST come before parameterized routes in Express
+// /print-all must be before /:ticketId/pdf to match correctly
+router.get('/me/tickets/print-all', downloadAllTicketsPdf);
 router.get('/me/tickets/:ticketId/pdf', downloadTicketPdf);
 router.get('/me/tickets/:ticketId/png', downloadTicketPng);
-router.get('/me/tickets/print-all', downloadAllTicketsPdf);
 
 router.use(authenticate);
 

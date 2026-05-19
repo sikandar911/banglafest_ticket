@@ -82,6 +82,7 @@ model Order {
   discountAmount      Decimal?      @map("discount_amount") @db.Decimal(10, 2)
   salesExecutiveId    String?       @map("sales_executive_id")
   paymentMethod       PaymentMethod @default(ONLINE) @map("payment_method")
+  attendeeNames       String?       @map("attendee_names") // JSON array of names per ticket slot
   items               OrderItem[]
   ticketTier          TicketTier    @relation("OrderTier", fields: [tierId], references: [id])
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -144,6 +145,7 @@ model Ticket {
   status       TicketStatus @default(VALID)
   scannedAt    DateTime?    @map("scanned_at")
   createdAt    DateTime     @default(now()) @map("created_at")
+  attendeeName String?      @map("attendee_name")
   order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   ticketTier   TicketTier   @relation(fields: [ticketTierId], references: [id])
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)

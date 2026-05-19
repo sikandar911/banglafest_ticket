@@ -9,7 +9,7 @@ async function seed() {
 
     // Create admin user
     const adminEmail = 'admin@banglafest.com';
-    const adminPassword = 'amb @12345'; // Change this to a secure password
+    const adminPassword = 'Ambrosian2026AMB'; // Change this to a secure password
 
     // Check if admin already exists
     const existingAdmin = await prisma.user.findUnique({

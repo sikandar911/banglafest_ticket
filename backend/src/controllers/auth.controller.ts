@@ -290,6 +290,57 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
   }
 }
 
+// ─── Change Password (Authenticated) ─────────────────────────────────────────
+
+export async function changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // This is an authenticated endpoint — req.user should be set by authenticate middleware
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized. Please log in.' });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Current and new passwords are required.' });
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      res.status(400).json({ error: 'New password must be different from current password.' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    // Verify current password
+    const passwordMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!passwordMatch) {
+      res.status(401).json({ error: 'Current password is incorrect.' });
+      return;
+    }
+
+    // Hash and update new password
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    await sendPasswordChangedEmail(user.email, user.name);
+
+    res.json({ message: 'Password changed successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ─── Check Email Availability ────────────────────────────────────────────────
 
 export async function checkEmail(req: Request, res: Response, next: NextFunction): Promise<void> {

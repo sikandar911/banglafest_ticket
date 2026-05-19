@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate } from '../middleware/authenticate';
 import { validate } from '../middleware/validate';
-import { createOrder, getOrder, confirmOrder } from '../controllers/order.controller';
+import { createOrder, getOrder, confirmOrder, setAttendeeNames } from '../controllers/order.controller';
 
 const router = Router();
 
@@ -209,5 +209,8 @@ router.post(
  */
 router.get('/:id', authenticate, getOrder);
 router.post('/:id/confirm', authenticate, confirmOrder);
+router.patch('/:id/attendee-names', authenticate, [
+  body('names').isArray().withMessage('names must be an array.'),
+], validate, setAttendeeNames);
 
 export default router;

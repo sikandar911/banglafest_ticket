@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import rateLimit from 'express-rate-limit';
 import { validate } from '../middleware/validate';
+import { authenticate } from '../middleware/authenticate';
 import {
   register,
   verifyEmail,
@@ -11,6 +12,7 @@ import {
   logout,
   forgotPassword,
   resetPassword,
+  changePassword,
   checkEmail,
 } from '../controllers/auth.controller';
 
@@ -589,6 +591,81 @@ router.post(
   [body('email').isEmail().normalizeEmail()],
   validate,
   checkEmail
+);
+
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Change password (authenticated)
+ *     description: Change password for the currently logged-in user. Requires current password verification.
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: Current password
+ *                 example: OldPassword123
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: New password (minimum 8 characters)
+ *                 minLength: 8
+ *                 example: NewPassword456
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password changed successfully."
+ *       400:
+ *         description: Invalid password or missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Current password is incorrect."
+ *       401:
+ *         description: Unauthorized - not authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Unauthorized. Please log in."
+ */
+router.post(
+  '/change-password',
+  authenticate,
+  [
+    body('currentPassword').trim().notEmpty().withMessage('Current password is required.'),
+    body('newPassword')
+      .isLength({ min: 8 })
+      .withMessage('New password must be at least 8 characters.'),
+  ],
+  validate,
+  changePassword
 );
 
 export default router;

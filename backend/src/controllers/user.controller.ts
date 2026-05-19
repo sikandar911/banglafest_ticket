@@ -34,6 +34,7 @@ export async function getMyTickets(req: AuthRequest, res: Response, next: NextFu
       status: ticket.status,
       scannedAt: ticket.scannedAt,
       createdAt: ticket.createdAt,
+      attendeeName: ticket.attendeeName ?? null,
       // QR code from external API — no package
       qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticket.id)}&ecc=H&margin=5`,
       event: {
@@ -155,6 +156,7 @@ export async function downloadTicketPdf(req: Request, res: Response, next: NextF
 
     const pdfBuffer = await generateTicketPdf({
       ticketId: ticket.id,
+      attendeeName: ticket.attendeeName ?? undefined,
       userName: ticket.user.name,
       userEmail: ticket.user.email,
       eventTitle: ticket.ticketTier.event.title,
@@ -210,6 +212,7 @@ export async function downloadTicketPng(req: Request, res: Response, next: NextF
 
     const pngBuffer = await generateTicketPng({
       ticketId: ticket.id,
+      attendeeName: ticket.attendeeName ?? undefined,
       userName: ticket.user.name,
       userEmail: ticket.user.email,
       eventTitle: ticket.ticketTier.event.title,
@@ -266,6 +269,7 @@ export async function downloadAllTicketsPdf(req: Request, res: Response, next: N
     const pdfBuffer = await generateTicketsPdf(
       tickets.map((ticket) => ({
         ticketId: ticket.id,
+        attendeeName: ticket.attendeeName ?? undefined,
         userName: ticket.user.name,
         userEmail: ticket.user.email,
         eventTitle: ticket.ticketTier.event.title,

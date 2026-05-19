@@ -2,8 +2,8 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
-import { sendAttendeeOtpEmail, sendTicketConfirmationEmail } from '../services/email.service';
-import { generateTicketPdf, generateTicketsPdf, type TicketPdfData } from '../services/pdf.service';
+import { sendAttendeeOtpEmail } from '../services/email.service';
+import { generateTicketsPdf, type TicketPdfData } from '../services/pdf.service';
 
 const OTP_EXPIRES_MINUTES = parseInt(process.env.OTP_EXPIRES_IN_MINUTES || '15', 10);
 
@@ -210,32 +210,7 @@ export async function completeSale(req: AuthRequest, res: Response, next: NextFu
 
     const tickets = await prisma.ticket.findMany({ where: { orderId: order.id } });
 
-    // Generate PDFs and send email (best-effort)
-    const pdfBuffers = await Promise.all(
-      tickets.map((ticket) =>
-        generateTicketPdf({
-          ticketId: ticket.id,
-          userName: attendee.name,
-          userEmail: attendee.email,
-          eventTitle: tier.event.title,
-          tierName: tier.name,
-          eventDate: tier.event.startTime,
-          location: tier.event.location ?? '',
-          orderId: order.id,
-          createdAt: ticket.createdAt,
-          features: tier.features ? JSON.parse(tier.features as string) : undefined,
-          performers: tier.event.performers ? JSON.parse(tier.event.performers as string) : undefined,
-          specialAdditions: tier.event.specialAdditions ? JSON.parse(tier.event.specialAdditions as string) : undefined,
-        })
-      )
-    );
-
-    sendTicketConfirmationEmail(
-      attendee.email,
-      attendee.name,
-      tickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
-      { eventTitle: tier.event.title, tierName: tier.name, eventDate: tier.event.startTime }
-    ).catch((err) => console.error('[completeSale] Failed to send ticket email:', err));
+    // Email with ticket PDFs is sent after attendee names are entered (in setAttendeeNames endpoint).
 
     res.status(201).json({
       message: `${qty} ticket(s) sold successfully.`,
@@ -398,6 +373,7 @@ export async function printCustomerTickets(req: AuthRequest, res: Response, next
       for (const ticket of order.tickets) {
         ticketDataList.push({
           ticketId: ticket.id,
+          attendeeName: (ticket as { attendeeName?: string | null }).attendeeName ?? undefined,
           userName: attendee.name,
           userEmail: attendee.email,
           eventTitle: order.ticketTier.event.title,
