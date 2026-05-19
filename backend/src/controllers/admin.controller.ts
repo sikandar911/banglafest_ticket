@@ -762,7 +762,7 @@ export async function listPromoCodes(_req: Request, res: Response, next: NextFun
 // POST /api/admin/promo-codes
 export async function createPromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { code, influencerName, socialMedia, eventIds } = req.body;
+    const { code, influencerName, socialMedia, discountAmount, eventIds, startDate, endDate } = req.body;
 
     if (!code || !String(code).trim()) {
       res.status(400).json({ error: 'Promo code is required.' });
@@ -777,6 +777,22 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
       return;
     }
 
+    const parsedStart = startDate ? new Date(startDate) : null;
+    const parsedEnd   = endDate   ? new Date(endDate)   : null;
+
+    if (parsedStart && isNaN(parsedStart.getTime())) {
+      res.status(400).json({ error: 'Invalid start date.' });
+      return;
+    }
+    if (parsedEnd && isNaN(parsedEnd.getTime())) {
+      res.status(400).json({ error: 'Invalid end date.' });
+      return;
+    }
+    if (parsedStart && parsedEnd && parsedEnd <= parsedStart) {
+      res.status(400).json({ error: 'End date must be after start date.' });
+      return;
+    }
+
     const normalizedCode = String(code).trim().toUpperCase();
 
     const existing = await prisma.promoCode.findUnique({ where: { code: normalizedCode } });
@@ -785,11 +801,20 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
       return;
     }
 
+    const parsedDiscount = discountAmount != null && discountAmount !== '' ? Number(discountAmount) : null;
+    if (parsedDiscount !== null && (isNaN(parsedDiscount) || parsedDiscount < 0)) {
+      res.status(400).json({ error: 'Discount amount must be a positive number.' });
+      return;
+    }
+
     const promoCode = await prisma.promoCode.create({
       data: {
         code: normalizedCode,
         influencerName: String(influencerName).trim(),
         socialMedia: socialMedia ? String(socialMedia).trim() : null,
+        discountAmount: parsedDiscount,
+        startDate: parsedStart,
+        endDate: parsedEnd,
         events: {
           create: (eventIds as string[]).map((eventId) => ({ eventId })),
         },
@@ -803,7 +828,121 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
       },
     });
 
-    res.status(201).json({ promoCode });
+    // Warn if effective discount >= any tier price (tickets would be free/over-discounted)
+    const warnings: string[] = [];
+
+    if (parsedDiscount !== null && parsedDiscount > 0) {
+      const tiers = await prisma.ticketTier.findMany({
+        where: { eventId: { in: eventIds as string[] } },
+        select: { name: true, price: true, event: { select: { title: true } } },
+      });
+      for (const tier of tiers) {
+        if (parsedDiscount >= Number(tier.price)) {
+          warnings.push(
+            `"${tier.event.title}" → Tier "${tier.name}": promo discount £${parsedDiscount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
+          );
+        }
+      }
+    } else {
+      const tiers = await prisma.ticketTier.findMany({
+        where: { eventId: { in: eventIds as string[] }, promoDiscountAmount: { not: null } },
+        select: { name: true, price: true, promoDiscountAmount: true, event: { select: { title: true } } },
+      });
+      for (const tier of tiers) {
+        const discount = Number(tier.promoDiscountAmount);
+        if (discount >= Number(tier.price)) {
+          warnings.push(
+            `"${tier.event.title}" → Tier "${tier.name}": promo discount £${discount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
+          );
+        }
+      }
+    }
+
+    res.status(201).json({ promoCode, ...(warnings.length > 0 && { warnings }) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/admin/promo-codes/:id
+export async function updatePromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { influencerName, socialMedia, discountAmount, eventIds, startDate, endDate } = req.body;
+
+    const existing = await prisma.promoCode.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: 'Promo code not found.' });
+      return;
+    }
+
+    const parsedStart    = startDate    ? new Date(startDate)    : null;
+    const parsedEnd      = endDate      ? new Date(endDate)      : null;
+    const parsedDiscount = discountAmount != null && discountAmount !== '' ? Number(discountAmount) : null;
+
+    if (parsedStart && isNaN(parsedStart.getTime())) {
+      res.status(400).json({ error: 'Invalid start date.' });
+      return;
+    }
+    if (parsedEnd && isNaN(parsedEnd.getTime())) {
+      res.status(400).json({ error: 'Invalid end date.' });
+      return;
+    }
+    if (parsedStart && parsedEnd && parsedEnd <= parsedStart) {
+      res.status(400).json({ error: 'End date must be after start date.' });
+      return;
+    }
+    if (parsedDiscount !== null && (isNaN(parsedDiscount) || parsedDiscount < 0)) {
+      res.status(400).json({ error: 'Discount amount must be a positive number.' });
+      return;
+    }
+
+    // Update event associations if provided
+    if (Array.isArray(eventIds)) {
+      if (eventIds.length === 0) {
+        res.status(400).json({ error: 'At least one event must be selected.' });
+        return;
+      }
+      await prisma.promoCodeEvent.deleteMany({ where: { promoCodeId: id } });
+      await prisma.promoCodeEvent.createMany({
+        data: (eventIds as string[]).map((eventId) => ({ promoCodeId: id, eventId })),
+      });
+    }
+
+    const updated = await prisma.promoCode.update({
+      where: { id },
+      data: {
+        ...(influencerName !== undefined && { influencerName: String(influencerName).trim() }),
+        // undefined = field not sent (don't touch); null or "" = clear it; string = set it
+        ...(socialMedia !== undefined && { socialMedia: socialMedia ? String(socialMedia).trim() : null }),
+        discountAmount: parsedDiscount,
+        startDate: parsedStart,
+        endDate: parsedEnd,
+      },
+      include: {
+        events: { include: { event: { select: { id: true, title: true } } } },
+        _count: { select: { orders: true } },
+      },
+    });
+
+    // Warn if discount >= tier price
+    const warnings: string[] = [];
+    if (parsedDiscount !== null && parsedDiscount > 0) {
+      const ids = Array.isArray(eventIds) ? (eventIds as string[]) : updated.events.map((e) => e.eventId);
+      const tiers = await prisma.ticketTier.findMany({
+        where: { eventId: { in: ids } },
+        select: { name: true, price: true, event: { select: { title: true } } },
+      });
+      for (const tier of tiers) {
+        if (parsedDiscount >= Number(tier.price)) {
+          warnings.push(
+            `"${tier.event.title}" → Tier "${tier.name}": promo discount £${parsedDiscount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
+          );
+        }
+      }
+    }
+
+    res.json({ promoCode: updated, ...(warnings.length > 0 && { warnings }) });
   } catch (err) {
     next(err);
   }

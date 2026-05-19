@@ -19,6 +19,7 @@ import {
   updateUserRole,
   listPromoCodes,
   createPromoCode,
+  updatePromoCode,
   togglePromoCode,
   deletePromoCode,
   createUser,
@@ -379,11 +380,25 @@ router.post(
     body('code').trim().notEmpty().withMessage('Promo code is required.'),
     body('influencerName').trim().notEmpty().withMessage('Influencer name is required.'),
     body('eventIds').isArray({ min: 1 }).withMessage('At least one event must be selected.'),
+    body('startDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Start date must be a valid date.'),
+    body('endDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('End date must be a valid date.'),
   ],
   validate,
   createPromoCode
 );
 
+router.patch(
+  '/promo-codes/:id',
+  [
+    body('influencerName').optional().trim().notEmpty().withMessage('Influencer name cannot be empty.'),
+    body('eventIds').optional().isArray({ min: 1 }).withMessage('At least one event must be selected.'),
+    body('discountAmount').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }).withMessage('Discount must be a positive number.'),
+    body('startDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Start date must be a valid date.'),
+    body('endDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('End date must be a valid date.'),
+  ],
+  validate,
+  updatePromoCode
+);
 router.patch('/promo-codes/:id/toggle', togglePromoCode);
 router.delete('/promo-codes/:id', deletePromoCode);
 

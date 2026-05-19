@@ -107,13 +107,16 @@ model OrderItem {
 }
 
 model PromoCode {
-  id             String   @id @default(uuid())
-  code           String   @unique
-  influencerName String   @map("influencer_name")
-  socialMedia    String?  @map("social_media")
-  isActive       Boolean  @default(true) @map("is_active")
-  usageCount     Int      @default(0) @map("usage_count")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id             String    @id @default(uuid())
+  code           String    @unique
+  influencerName String    @map("influencer_name")
+  socialMedia    String?   @map("social_media")
+  discountAmount Decimal?  @map("discount_amount") @db.Decimal(10, 2)
+  isActive       Boolean   @default(true) @map("is_active")
+  usageCount     Int       @default(0) @map("usage_count")
+  startDate      DateTime? @map("start_date")
+  endDate        DateTime? @map("end_date")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   // Relations
   events PromoCodeEvent[]

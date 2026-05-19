@@ -50,8 +50,11 @@ export const adminApi = {
   listPromoCodes: () =>
     api.get<{ promoCodes: PromoCode[] }>('/api/admin/promo-codes'),
 
-  createPromoCode: (data: { code: string; influencerName: string; socialMedia?: string; eventIds: string[] }) =>
-    api.post<{ promoCode: PromoCode }>('/api/admin/promo-codes', data),
+  createPromoCode: (data: { code: string; influencerName: string; socialMedia?: string; discountAmount?: number | null; eventIds: string[]; startDate?: string | null; endDate?: string | null }) =>
+    api.post<{ promoCode: PromoCode; warnings?: string[] }>('/api/admin/promo-codes', data),
+
+  updatePromoCode: (id: string, data: { influencerName?: string; socialMedia?: string | null; discountAmount?: number | null; eventIds?: string[]; startDate?: string | null; endDate?: string | null }) =>
+    api.patch<{ promoCode: PromoCode; warnings?: string[] }>(`/api/admin/promo-codes/${id}`, data),
 
   togglePromoCode: (id: string) =>
     api.patch<{ promoCode: PromoCode }>(`/api/admin/promo-codes/${id}/toggle`),

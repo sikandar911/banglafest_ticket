@@ -122,8 +122,11 @@ export interface PromoCode {
   code: string;
   influencerName: string;
   socialMedia?: string;
+  discountAmount?: number | null;
   isActive: boolean;
   usageCount: number;
+  startDate?: string | null;
+  endDate?: string | null;
   createdAt: string;
   events?: Array<{
     event: { id: string; title: string };

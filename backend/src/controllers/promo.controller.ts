@@ -26,7 +26,17 @@ export async function validatePromoCode(req: Request, res: Response, next: NextF
     });
 
     if (!promoCode || !promoCode.isActive) {
-      res.status(404).json({ valid: false, message: 'Invalid or expired promo code.' });
+      res.status(404).json({ valid: false, message: 'Invalid or inactive promo code.' });
+      return;
+    }
+
+    const now = new Date();
+    if (promoCode.startDate && now < promoCode.startDate) {
+      res.status(400).json({ valid: false, message: `This promo code is not yet active. It starts on ${promoCode.startDate.toDateString()}.` });
+      return;
+    }
+    if (promoCode.endDate && now > promoCode.endDate) {
+      res.status(400).json({ valid: false, message: 'This promo code has expired.' });
       return;
     }
 
@@ -50,9 +60,13 @@ export async function validatePromoCode(req: Request, res: Response, next: NextF
       return;
     }
 
-    const discountAmount = tier.promoDiscountAmount
-      ? Number(tier.promoDiscountAmount)
-      : 0;
+    // Promo-level discount takes precedence; tier-level is the fallback
+    const discountAmount =
+      promoCode.discountAmount != null
+        ? Number(promoCode.discountAmount)
+        : tier.promoDiscountAmount
+          ? Number(tier.promoDiscountAmount)
+          : 0;
 
     res.json({
       valid: true,
