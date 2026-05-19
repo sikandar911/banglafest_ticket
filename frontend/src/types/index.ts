@@ -3,7 +3,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'USER' | 'ADMIN' | 'SCANNER';
+  role: 'USER' | 'ADMIN' | 'SCANNER' | 'SALES_EXECUTIVE';
   isVerified: boolean;
   createdAt: string;
 }
@@ -101,13 +101,16 @@ export interface RevenueData {
   totalOrders: number;
   paidOrders: number;
   refundedOrders: number;
+  salesExecRevenue?: number;
+  salesExecOrders?: number;
+  salesExecTickets?: number;
 }
 
 export interface AdminUser {
   id: string;
   name: string;
   email: string;
-  role: 'USER' | 'ADMIN' | 'SCANNER';
+  role: 'USER' | 'ADMIN' | 'SCANNER' | 'SALES_EXECUTIVE';
   isVerified: boolean;
   createdAt: string;
   _count?: { orders: number; tickets: number };
@@ -160,4 +163,35 @@ export interface ApiError {
   error?: string;
   message?: string;
   errors?: Array<{ field: string; message: string }>;
+}
+
+// ─── Sales Executive ──────────────────────────────────────────────────────────
+export type PaymentMethod = 'ONLINE' | 'CASH' | 'CARD_MACHINE';
+
+export interface SaleTicket {
+  id: string;
+  orderId: string;
+  status: string;
+  scannedAt?: string;
+  createdAt: string;
+}
+
+export interface SaleOrder {
+  id: string;
+  quantity: number;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  createdAt: string;
+  event: { id: string; title: string; startTime: string; location?: string };
+  tier: { id: string; name: string; price: number };
+  tickets: SaleTicket[];
+}
+
+export interface SalesCustomer {
+  attendeeId: string;
+  attendeeName: string;
+  attendeeEmail: string;
+  totalTickets: number;
+  totalSpent: number;
+  orders: SaleOrder[];
 }

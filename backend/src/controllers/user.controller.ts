@@ -2,7 +2,18 @@ import { Response, NextFunction, Request } from 'express';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
-import { generateTicketPdf } from '../services/pdf.service';
+import { generateTicketPdf, generateTicketPng, generateTicketsPdf } from '../services/pdf.service';
+
+function safeParseJsonArray<T>(value: unknown): T[] | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as T[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // GET /api/users/me/tickets
 export async function getMyTickets(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -37,7 +48,7 @@ export async function getMyTickets(req: AuthRequest, res: Response, next: NextFu
         name: ticket.ticketTier.name,
         price: Number(ticket.ticketTier.price),
         description: ticket.ticketTier.description,
-        features: ticket.ticketTier.features ? JSON.parse(ticket.ticketTier.features) : [],
+        features: safeParseJsonArray<string>(ticket.ticketTier.features) ?? [],
       },
       order: {
         id: ticket.order.id,
@@ -51,6 +62,38 @@ export async function getMyTickets(req: AuthRequest, res: Response, next: NextFu
     res.json({ tickets: ticketsWithQr });
   } catch (err) {
     next(err);
+  }
+}
+
+function resolveToken(req: Request): string | undefined {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+
+  const queryToken = req.query.token;
+  if (typeof queryToken === 'string' && queryToken.trim()) {
+    return queryToken.trim();
+  }
+
+  return undefined;
+}
+
+async function resolveTicketOwnerId(req: Request): Promise<string | null> {
+  const token = resolveToken(req);
+  if (!token) return null;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as { id: string };
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, isVerified: true },
+    });
+
+    if (!user || !user.isVerified) return null;
+    return user.id;
+  } catch {
+    return null;
   }
 }
 
@@ -84,22 +127,9 @@ export async function getMyOrders(req: AuthRequest, res: Response, next: NextFun
 // Supports auth via Authorization header OR ?token= query param (for direct browser downloads)
 export async function downloadTicketPdf(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // Resolve user from either Authorization header or ?token= query param
-    let userId: string | undefined = (req as AuthRequest).user?.id;
-    if (!userId && req.query.token) {
-      try {
-        const decoded = jwt.verify(
-          req.query.token as string,
-          process.env.JWT_ACCESS_SECRET!
-        ) as { id: string };
-        userId = decoded.id;
-      } catch {
-        res.status(401).json({ error: 'Invalid or expired token.' });
-        return;
-      }
-    }
+    const userId = await resolveTicketOwnerId(req);
     if (!userId) {
-      res.status(401).json({ error: 'Authentication required.' });
+      res.status(401).json({ error: 'No token provided.' });
       return;
     }
 
@@ -133,13 +163,125 @@ export async function downloadTicketPdf(req: Request, res: Response, next: NextF
       location: ticket.ticketTier.event.location ?? '',
       orderId: ticket.order.id,
       createdAt: ticket.createdAt,
-      features: ticket.ticketTier.features ? JSON.parse(ticket.ticketTier.features as string) : undefined,
-      performers: ticket.ticketTier.event.performers ? JSON.parse(ticket.ticketTier.event.performers as string) : undefined,
-      specialAdditions: ticket.ticketTier.event.specialAdditions ? JSON.parse(ticket.ticketTier.event.specialAdditions as string) : undefined,
+      features: safeParseJsonArray<string>(ticket.ticketTier.features),
+      performers: safeParseJsonArray<{ name: string; ticketDisplayName: string }>(ticket.ticketTier.event.performers),
+      specialAdditions: safeParseJsonArray<{ name: string; description: string; ticketDisplayText: string }>(ticket.ticketTier.event.specialAdditions),
     });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="banglafest-ticket-${ticket.id.slice(0, 8)}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(pdfBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/users/me/tickets/:ticketId/png
+// Downloads a single ticket QR image as PNG.
+export async function downloadTicketPng(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = await resolveTicketOwnerId(req);
+    if (!userId) {
+      res.status(401).json({ error: 'No token provided.' });
+      return;
+    }
+
+    const { ticketId } = req.params;
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        user: { select: { name: true, email: true } },
+        ticketTier: { include: { event: true } },
+        order: { select: { id: true } },
+      },
+    });
+
+    if (!ticket) {
+      res.status(404).json({ error: 'Ticket not found.' });
+      return;
+    }
+
+    if (ticket.userId !== userId) {
+      res.status(403).json({ error: 'Access denied.' });
+      return;
+    }
+
+    const pngBuffer = await generateTicketPng({
+      ticketId: ticket.id,
+      userName: ticket.user.name,
+      userEmail: ticket.user.email,
+      eventTitle: ticket.ticketTier.event.title,
+      tierName: ticket.ticketTier.name,
+      eventDate: ticket.ticketTier.event.startTime,
+      location: ticket.ticketTier.event.location ?? '',
+      orderId: ticket.order.id,
+      createdAt: ticket.createdAt,
+      features: safeParseJsonArray<string>(ticket.ticketTier.features),
+      performers: safeParseJsonArray<{ name: string; ticketDisplayName: string }>(ticket.ticketTier.event.performers),
+      specialAdditions: safeParseJsonArray<{ name: string; description: string; ticketDisplayText: string }>(ticket.ticketTier.event.specialAdditions),
+    });
+
+    const safeTier = ticket.ticketTier.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'ticket';
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="banglafest-${safeTier}-${ticket.id.slice(0, 8)}.png"`);
+    res.setHeader('Content-Length', pngBuffer.length);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(pngBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/users/me/tickets/print-all
+// Returns a single multi-page PDF containing all non-cancelled tickets.
+export async function downloadAllTicketsPdf(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = await resolveTicketOwnerId(req);
+    if (!userId) {
+      res.status(401).json({ error: 'No token provided.' });
+      return;
+    }
+
+    const tickets = await prisma.ticket.findMany({
+      where: { userId, status: { not: 'CANCELLED' } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true, email: true } },
+        ticketTier: { include: { event: true } },
+        order: { select: { id: true } },
+      },
+    });
+
+    if (tickets.length === 0) {
+      res.status(404).json({ error: 'No tickets found.' });
+      return;
+    }
+
+    const pdfBuffer = await generateTicketsPdf(
+      tickets.map((ticket) => ({
+        ticketId: ticket.id,
+        userName: ticket.user.name,
+        userEmail: ticket.user.email,
+        eventTitle: ticket.ticketTier.event.title,
+        tierName: ticket.ticketTier.name,
+        eventDate: ticket.ticketTier.event.startTime,
+        location: ticket.ticketTier.event.location ?? '',
+        orderId: ticket.order.id,
+        createdAt: ticket.createdAt,
+        features: safeParseJsonArray<string>(ticket.ticketTier.features),
+        performers: safeParseJsonArray<{ name: string; ticketDisplayName: string }>(ticket.ticketTier.event.performers),
+        specialAdditions: safeParseJsonArray<{ name: string; description: string; ticketDisplayText: string }>(ticket.ticketTier.event.specialAdditions),
+      }))
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="banglafest-all-tickets.pdf"');
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Cache-Control', 'no-store');
     res.send(pdfBuffer);

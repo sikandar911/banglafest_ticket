@@ -14,6 +14,7 @@ import userRoutes from './routes/user.routes';
 import adminRoutes from './routes/admin.routes';
 import scannerRoutes from './routes/scanner.routes';
 import promoRoutes from './routes/promo.routes';
+import salesRoutes from './routes/sales.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { startExpireOrdersJob } from './jobs/expireOrders';
 
@@ -65,6 +66,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/scanner', scannerRoutes);
 app.use('/api/promo', promoRoutes);
+app.use('/api/sales', salesRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {

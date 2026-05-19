@@ -271,3 +271,80 @@ export async function sendTicketConfirmationEmail(
     attachments,
   });
 }
+
+// ─── Send Attendee OTP Email (Sales flow) ─────────────────────────────────────
+export async function sendAttendeeOtpEmail(
+  email: string,
+  name: string,
+  otp: string
+): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'Your Banglafest ticket purchase verification code',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+          <p style="margin: 8px 0 0; opacity: 0.8;">Ticket Purchase Verification</p>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+          <h2 style="color: #1a1a2e;">Hi ${name},</h2>
+          <p>A Banglafest sales executive is purchasing tickets on your behalf. Please share the verification code below with them:</p>
+          <div style="background: #f4f4f4; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #f26522;">${otp}</span>
+          </div>
+          <p>This code expires in ${process.env.OTP_EXPIRES_IN_MINUTES || 15} minutes.</p>
+          <p style="color: #666; font-size: 12px;">If you did not request this, please ignore this email.</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+// ─── Send Staff Welcome Email ─────────────────────────────────────────────────
+export async function sendStaffWelcomeEmail(
+  email: string,
+  name: string,
+  role: string,
+  tempPassword: string
+): Promise<void> {
+  const roleLabel = role === 'SALES_EXECUTIVE' ? 'Sales Executive' : 'Scanner';
+  const loginUrl = `${process.env.FRONTEND_URL}/login`;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: `You've been added to Banglafest as a ${roleLabel}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+          <p style="margin: 8px 0 0; opacity: 0.8;">Staff Account Created</p>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+          <h2 style="color: #1a1a2e;">Welcome, ${name}!</h2>
+          <p>An admin has created a <strong>${roleLabel}</strong> account for you on Banglafest.</p>
+          <p>Here are your login credentials:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;">Email</td>
+              <td style="padding: 10px 0; font-weight: bold;">${email}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #666;">Password</td>
+              <td style="padding: 10px 0; font-weight: bold; color: #f26522;">${tempPassword}</td>
+            </tr>
+          </table>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${loginUrl}"
+               style="background: #f26522; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+              Log In Now
+            </a>
+          </div>
+          <p style="color: #666; font-size: 12px;">For security, please change your password after your first login.</p>
+        </div>
+      </div>
+    `,
+  });
+}

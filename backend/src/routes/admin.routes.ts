@@ -21,6 +21,7 @@ import {
   createPromoCode,
   togglePromoCode,
   deletePromoCode,
+  createUser,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -222,6 +223,7 @@ router.get('/revenue', getRevenue);
  *         description: List of users
  */
 router.get('/users', listUsers);
+router.post('/users', createUser);
 
 /**
  * @swagger

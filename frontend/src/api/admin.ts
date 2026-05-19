@@ -26,6 +26,9 @@ export const adminApi = {
   listUsers: (params?: { page?: number; limit?: number }) =>
     api.get<{ users: AdminUser[]; total: number }>('/api/admin/users', { params }),
 
+  createUser: (data: { name: string; email: string; role: string; password: string }) =>
+    api.post<{ user: AdminUser }>('/api/admin/users', data),
+
   updateUserRole: (userId: string, role: string) =>
     api.put(`/api/admin/users/${userId}/role`, { role }),
 

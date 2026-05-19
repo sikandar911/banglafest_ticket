@@ -23,6 +23,7 @@ model User {
   eventsCreated       Event[]   @relation("EventCreatedBy")
   orders              Order[]
   tickets             Ticket[]
+  salesOrders         Order[]   @relation("SalesOrders")
 
   @@map("users")
 }
@@ -76,13 +77,16 @@ model Order {
   status              OrderStatus @default(PENDING)
   expiresAt           DateTime    @map("expires_at")
   createdAt           DateTime    @default(now()) @map("created_at")
-  isBypassed          Boolean     @default(false) @map("is_bypassed")
-  promoCodeId         String?     @map("promo_code_id")
-  discountAmount      Decimal?    @map("discount_amount") @db.Decimal(10, 2)
+  isBypassed          Boolean       @default(false) @map("is_bypassed")
+  promoCodeId         String?       @map("promo_code_id")
+  discountAmount      Decimal?      @map("discount_amount") @db.Decimal(10, 2)
+  salesExecutiveId    String?       @map("sales_executive_id")
+  paymentMethod       PaymentMethod @default(ONLINE) @map("payment_method")
   items               OrderItem[]
-  ticketTier          TicketTier  @relation("OrderTier", fields: [tierId], references: [id])
-  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  promoCode           PromoCode?  @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  ticketTier          TicketTier    @relation("OrderTier", fields: [tierId], references: [id])
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode           PromoCode?    @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  salesExecutive      User?         @relation("SalesOrders", fields: [salesExecutiveId], references: [id], onDelete: SetNull)
   tickets             Ticket[]
 
   @@map("orders")
@@ -148,6 +152,13 @@ enum Role {
   USER
   ADMIN
   SCANNER
+  SALES_EXECUTIVE
+}
+
+enum PaymentMethod {
+  ONLINE
+  CASH
+  CARD_MACHINE
 }
 
 enum OrderStatus {

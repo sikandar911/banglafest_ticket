@@ -27,6 +27,7 @@ const roleMap: Record<string, string> = {
   USER: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-300',
   ADMIN: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-900 text-purple-300',
   SCANNER: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-900 text-teal-300',
+  SALES_EXECUTIVE: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-900 text-orange-300',
 };
 
 export function RoleBadge({ role }: { role: string }) {

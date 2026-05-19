@@ -35,6 +35,11 @@ import AdminPromoCodesPage from './pages/admin/AdminPromoCodesPage';
 // Scanner
 import { ScannerPage } from './pages/scanner/ScannerPage';
 
+// Sales Executive
+import { SalesLayout } from './pages/sales/SalesLayout';
+import { SalesNewSalePage } from './pages/sales/SalesNewSalePage';
+import { SalesCustomersPage } from './pages/sales/SalesCustomersPage';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -92,6 +97,15 @@ export default function App() {
               {/* Scanner – requires SCANNER or ADMIN role */}
               <Route element={<ProtectedRoute roles={['SCANNER', 'ADMIN']} />}>
                 <Route path="scanner" element={<ScannerPage />} />
+              </Route>
+
+              {/* Sales Executive – requires SALES_EXECUTIVE role */}
+              <Route element={<ProtectedRoute roles={['SALES_EXECUTIVE', 'ADMIN']} />}>
+                <Route path="sales" element={<SalesLayout />}>
+                  <Route index element={<Navigate to="/sales/customers" replace />} />
+                  <Route path="new" element={<SalesNewSalePage />} />
+                  <Route path="customers" element={<SalesCustomersPage />} />
+                </Route>
               </Route>
 
               {/* Fallback */}

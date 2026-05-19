@@ -1,10 +1,12 @@
 import { Response, NextFunction, Request } from 'express';
 import Stripe from 'stripe';
+import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
 import {
   sendTicketConfirmationEmail,
   sendRefundConfirmationEmail,
+  sendStaffWelcomeEmail,
 } from '../services/email.service';
 import { generateTicketPdf } from '../services/pdf.service';
 
@@ -259,8 +261,21 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
       },
     });
 
+    const salesExecResult = await prisma.order.aggregate({
+      where: { status: 'PAID', salesExecutiveId: { not: null } },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+    });
+
+    const salesExecTicketCount = await prisma.ticket.count({
+      where: {
+        order: { salesExecutiveId: { not: null }, status: 'PAID' },
+      },
+    });
+
     const totalRevenue = Number(result._sum.totalAmount ?? 0);
     const refundedAmount = Number(refundedResult._sum.totalAmount ?? 0);
+    const salesExecRevenue = Number(salesExecResult._sum.totalAmount ?? 0);
 
     res.json({
       revenue: {
@@ -270,9 +285,62 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
         refundedOrders: refundedResult._count.id,
         netRevenue: totalRevenue - refundedAmount,
         totalOrders: result._count.id + refundedResult._count.id,
+        salesExecRevenue,
+        salesExecOrders: salesExecResult._count.id,
+        salesExecTickets: salesExecTicketCount,
       },
       recentOrders: recentOrders.map((o) => ({ ...o, totalAmount: Number(o.totalAmount) })),
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/admin/users
+export async function createUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { name, email, role, password } = req.body;
+
+    if (!name || !String(name).trim()) {
+      res.status(400).json({ error: 'Name is required.' });
+      return;
+    }
+    if (!email || !String(email).trim()) {
+      res.status(400).json({ error: 'Email is required.' });
+      return;
+    }
+    if (!['SCANNER', 'SALES_EXECUTIVE'].includes(role)) {
+      res.status(400).json({ error: 'Role must be SCANNER or SALES_EXECUTIVE.' });
+      return;
+    }
+    if (!password || String(password).length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters.' });
+      return;
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      res.status(409).json({ error: 'A user with this email already exists.' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role,
+        isVerified: true, // Staff accounts are pre-verified
+      },
+      select: { id: true, name: true, email: true, role: true, isVerified: true, createdAt: true },
+    });
+
+    sendStaffWelcomeEmail(email, name, role, password).catch((err) =>
+      console.error('[createUser] Failed to send welcome email:', err)
+    );
+
+    res.status(201).json({ user });
   } catch (err) {
     next(err);
   }
@@ -645,7 +713,7 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!['USER', 'ADMIN', 'SCANNER'].includes(role)) {
+    if (!['USER', 'ADMIN', 'SCANNER', 'SALES_EXECUTIVE'].includes(role)) {
       res.status(400).json({ error: 'Invalid role.' });
       return;
     }

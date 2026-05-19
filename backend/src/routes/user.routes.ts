@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { getMyTickets, getMyOrders, downloadTicketPdf, getProfile } from '../controllers/user.controller';
+import { getMyTickets, getMyOrders, downloadTicketPdf, downloadTicketPng, downloadAllTicketsPdf, getProfile } from '../controllers/user.controller';
 
 const router = Router();
 
 // PDF download must be registered BEFORE router.use(authenticate) so the
 // controller can handle auth itself via either header or ?token= query param.
 router.get('/me/tickets/:ticketId/pdf', downloadTicketPdf);
+router.get('/me/tickets/:ticketId/png', downloadTicketPng);
+router.get('/me/tickets/print-all', downloadAllTicketsPdf);
 
 router.use(authenticate);
 

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Ticket, LogOut, LayoutDashboard, ScanLine, ShieldCheck, Menu, X } from 'lucide-react';
+import { Ticket, LogOut, LayoutDashboard, ScanLine, ShieldCheck, Menu, X, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -48,6 +48,12 @@ export function Navbar() {
                 Scanner
               </Link>
             )}
+            {user?.role === 'SALES_EXECUTIVE' && (
+              <Link to="/sales/customers" className="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors text-sm font-medium flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4" />
+                Sales
+              </Link>
+            )}
           </nav>
 
           {/* Right side */}
@@ -91,6 +97,11 @@ export function Navbar() {
             {(user?.role === 'SCANNER' || user?.role === 'ADMIN') && (
               <Link to="/scanner" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 flex items-center gap-2">
                 <ScanLine className="w-4 h-4" /> Scanner
+              </Link>
+            )}
+            {user?.role === 'SALES_EXECUTIVE' && (
+              <Link to="/sales/customers" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" /> Sales
               </Link>
             )}
             <div className="pt-2 border-t border-gray-800 flex flex-col gap-2">

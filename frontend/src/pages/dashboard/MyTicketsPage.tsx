@@ -16,23 +16,26 @@ export function MyTicketsPage() {
     refetchIntervalInBackground: false,
   });
 
-  const printAllPdf = () => {
-    const token = localStorage.getItem('accessToken') ?? '';
-    const base  = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    window.open(
-      `${base}/api/users/me/tickets/print-all?token=${encodeURIComponent(token)}`,
-      '_blank'
-    );
+  const triggerBlobDownload = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
   };
 
-  const downloadTicket = (ticketId: string) => {
-    // Use direct URL with token so IDM and browser both download correctly
-    const token = localStorage.getItem('accessToken') ?? '';
-    const base  = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    window.open(
-      `${base}/api/users/me/tickets/${ticketId}/png?token=${encodeURIComponent(token)}`,
-      '_blank'
-    );
+  const printAllPdf = async () => {
+    const response = await userApi.downloadAllTicketsPdf();
+    triggerBlobDownload(response.data, 'banglafest-all-tickets.pdf');
+  };
+
+  const downloadTicket = async (ticketId: string) => {
+    const response = await userApi.downloadTicketPng(ticketId);
+    triggerBlobDownload(response.data, `banglafest-ticket-${ticketId.slice(0, 8)}.png`);
   };
 
   if (isLoading) return <PageSpinner />;
@@ -45,7 +48,7 @@ export function MyTicketsPage() {
         <div className="flex items-center gap-3">
           {tickets.length > 0 && (
             <button
-              onClick={printAllPdf}
+              onClick={() => void printAllPdf()}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium transition-colors"
             >
               <Printer className="w-4 h-4" />

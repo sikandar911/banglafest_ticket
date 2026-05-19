@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
-  roles?: Array<'USER' | 'ADMIN' | 'SCANNER'>;
+  roles?: Array<'USER' | 'ADMIN' | 'SCANNER' | 'SALES_EXECUTIVE'>;
 }
 
 export function ProtectedRoute({ roles }: Props) {
