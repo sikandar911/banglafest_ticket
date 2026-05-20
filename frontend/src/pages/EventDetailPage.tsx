@@ -1,7 +1,7 @@
-﻿import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+﻿import { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle } from "lucide-react";
+import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle, User } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { eventsApi } from "../api/events";
@@ -22,11 +22,38 @@ export function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedTiers, setSelectedTiers] = useState<Record<string, number>>({});
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+
+  // Attendee name step
+  const [pendingCheckout, setPendingCheckout] = useState<{
+    orderId: string;
+    totalAmount: number;
+    discountAmount: number;
+    tierName: string;
+    quantity: number;
+  } | null>(null);
+  const [attendeeNames, setAttendeeNames] = useState<string[]>([]);
+  const [isSubmittingNames, setIsSubmittingNames] = useState(false);
+
+  // Restore ticket selection saved before the auth redirect
+  useEffect(() => {
+    const raw = sessionStorage.getItem('pendingTicketSelection');
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw) as { eventId: string; tierId: string; quantity: number };
+      if (saved.eventId === id) {
+        setSelectedTiers({ [saved.tierId]: saved.quantity });
+        sessionStorage.removeItem('pendingTicketSelection');
+      }
+    } catch {
+      sessionStorage.removeItem('pendingTicketSelection');
+    }
+  }, [id]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -95,7 +122,13 @@ export function EventDetailPage() {
     }
 
     if (!isAuthenticated) {
-      navigate("/login", { state: { from: location.pathname } });
+      // Persist the selection so it can be restored after registration/login
+      const [[tierId, quantity]] = Object.entries(selectedTiers);
+      sessionStorage.setItem(
+        'pendingTicketSelection',
+        JSON.stringify({ eventId: id, tierId, quantity })
+      );
+      navigate('/register', { state: { from: location.pathname } });
       return;
     }
 
@@ -109,19 +142,40 @@ export function EventDetailPage() {
         quantity,
         promoCode: appliedPromo?.code,
       });
+      // Show attendee name form before proceeding to checkout
+      setPendingCheckout({
+        orderId: orderData.orderId,
+        totalAmount: orderData.totalAmount,
+        discountAmount: orderData.discountAmount ?? 0,
+        tierName: tier?.name ?? '',
+        quantity,
+      });
+      setAttendeeNames(Array(quantity).fill(''));
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to create order");
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  const handleProceedToCheckout = async () => {
+    if (!pendingCheckout) return;
+    setIsSubmittingNames(true);
+    try {
+      await ordersApi.setAttendeeNames(pendingCheckout.orderId, attendeeNames);
       navigate('/checkout', {
         state: {
-          orderId: orderData.orderId,
-          totalAmount: orderData.totalAmount,
-          discountAmount: orderData.discountAmount ?? 0,
-          tierName: tier?.name ?? '',
+          orderId: pendingCheckout.orderId,
+          totalAmount: pendingCheckout.totalAmount,
+          discountAmount: pendingCheckout.discountAmount,
+          tierName: pendingCheckout.tierName,
           eventTitle: event!.title,
-          quantity,
+          quantity: pendingCheckout.quantity,
         },
       });
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to create order");
-      setIsCheckingOut(false);
+      toast.error(err.response?.data?.error || 'Failed to save attendee names');
+      setIsSubmittingNames(false);
     }
   };
 
@@ -131,6 +185,52 @@ export function EventDetailPage() {
       <p className="text-gray-400">Event not found.</p>
     </div>
   );
+
+  // Attendee name step — shown after order creation
+  if (pendingCheckout) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-10">
+        <button
+          onClick={() => setPendingCheckout(null)}
+          className="flex items-center gap-1 text-sm text-gray-400 hover:text-white mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <h2 className="text-2xl font-bold text-white mb-1">On ticket Names</h2>
+        <p className="text-gray-400 text-sm mb-6">
+          Enter a name for each ticket (optional — leave blank to use your account name).
+        </p>
+        <div className="space-y-3">
+          {Array.from({ length: pendingCheckout.quantity }, (_, i) => (
+            <div key={i}>
+              <label className="block text-sm text-gray-300 mb-1">
+                <User className="inline w-3.5 h-3.5 mr-1" />Ticket {i + 1}
+              </label>
+              <input
+                type="text"
+                maxLength={100}
+                value={attendeeNames[i] ?? ''}
+                onChange={(e) => {
+                  const updated = [...attendeeNames];
+                  updated[i] = e.target.value;
+                  setAttendeeNames(updated);
+                }}
+                placeholder="Leave blank to use your account name"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={handleProceedToCheckout}
+          disabled={isSubmittingNames}
+          className="mt-8 w-full py-3 px-6 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors"
+        >
+          {isSubmittingNames ? 'Saving...' : 'Continue to Payment'}
+        </button>
+      </div>
+    );
+  }
 
   const totalPrice = Object.entries(selectedTiers).reduce((sum, [tierId, qty]) => {
     const tier = event.ticketTiers.find((t: any) => t.id === tierId);
@@ -368,7 +468,7 @@ export function EventDetailPage() {
                     ? "Processing..." 
                     : isAuthenticated
                     ? "Proceed to Payment"
-                    : "Login to Buy Tickets"}
+                    : "Register to Buy Tickets"}
                 </button>
               </>
             ) : (

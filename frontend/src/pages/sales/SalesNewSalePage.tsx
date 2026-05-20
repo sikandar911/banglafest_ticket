@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Loader2, User } from 'lucide-react';
 import { salesApi } from '../../api/sales';
 import type { TicketTier, Event } from '../../types';
 import { PageSpinner } from '../../components/ui/Spinner';
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 interface AttendeeInfo {
   name: string;
@@ -38,6 +38,8 @@ export function SalesNewSalePage() {
   const [quantity, setQuantity] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD_MACHINE'>('CASH');
   const [saleResult, setSaleResult] = useState<SaleResult | null>(null);
+  const [attendeeNames, setAttendeeNames] = useState<string[]>([]);
+  const [isSubmittingNames, setIsSubmittingNames] = useState(false);
 
   const { data: eventsData, isLoading: eventsLoading } = useQuery({
     queryKey: ['sales-events'],
@@ -75,11 +77,27 @@ export function SalesNewSalePage() {
       }),
     onSuccess: (res) => {
       setSaleResult(res.data);
+      // Initialize attendee names array
+      setAttendeeNames(Array(res.data.tickets.length).fill(''));
       setStep(4);
       toast.success(res.data.message);
     },
     onError: (err: any) => toast.error(err?.response?.data?.error ?? 'Failed to complete sale.'),
   });
+
+  const completeNamesSubmission = async () => {
+    if (!saleResult) return;
+    setIsSubmittingNames(true);
+    try {
+      await salesApi.setAttendeeNames(saleResult.order.id, attendeeNames);
+      toast.success('Attendee names saved!');
+      setStep(5);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to save attendee names');
+    } finally {
+      setIsSubmittingNames(false);
+    }
+  };
 
   // Find selected tier info
   const allTiers: Array<TicketTier & { event: Event }> = [];
@@ -100,6 +118,8 @@ export function SalesNewSalePage() {
     setQuantity(1);
     setPaymentMethod('CASH');
     setSaleResult(null);
+    setAttendeeNames([]);
+    setIsSubmittingNames(false);
   };
 
   return (
@@ -108,7 +128,7 @@ export function SalesNewSalePage() {
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 text-sm">
-        {(['Attendee Info', 'Verify Email', 'Choose Ticket', 'Complete'] as const).map((label, i) => {
+        {(['Attendee Info', 'Verify Email', 'Choose Ticket', 'Ticket Names', 'Complete'] as const).map((label, i) => {
           const s = (i + 1) as Step;
           const isActive = step === s;
           const isDone = step > s;
@@ -304,8 +324,51 @@ export function SalesNewSalePage() {
         </div>
       )}
 
-      {/* Step 4: Success */}
+      {/* Step 4: Enter Attendee Names */}
       {step === 4 && saleResult && (
+        <div className="card space-y-4">
+          <h3 className="font-semibold text-white">Step 4: Enter On-Ticket Names</h3>
+          <p className="text-sm text-gray-400">
+            Enter a name for each ticket (optional — leave blank to use attendee's registered name).
+          </p>
+          <div className="space-y-3">
+            {Array.from({ length: saleResult.tickets.length }, (_, i) => (
+              <div key={i}>
+                <label className="block text-sm text-gray-300 mb-1">
+                  <User className="inline w-3.5 h-3.5 mr-1" />Ticket {i + 1}
+                </label>
+                <input
+                  type="text"
+                  maxLength={100}
+                  value={attendeeNames[i] ?? ''}
+                  onChange={(e) => {
+                    const updated = [...attendeeNames];
+                    updated[i] = e.target.value;
+                    setAttendeeNames(updated);
+                  }}
+                  placeholder="Leave blank to use attendee's name"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <button className="btn-secondary flex-1" onClick={() => setStep(3)}>Back</button>
+            <button
+              className="btn-primary flex-1"
+              disabled={isSubmittingNames}
+              onClick={completeNamesSubmission}
+            >
+              {isSubmittingNames ? (
+                <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Saving...</span>
+              ) : 'Continue'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 5: Success */}
+      {step === 5 && saleResult && (
         <div className="card space-y-5">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="w-8 h-8 text-green-400 shrink-0" />

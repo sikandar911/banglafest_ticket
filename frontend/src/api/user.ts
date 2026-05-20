@@ -29,4 +29,10 @@ export const userApi = {
 
   downloadAllTicketsPdf: () =>
     api.get('/api/users/me/tickets/print-all', { responseType: 'blob' }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<{ message: string }>('/api/auth/change-password', {
+      currentPassword,
+      newPassword,
+    }),
 };

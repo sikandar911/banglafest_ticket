@@ -57,9 +57,13 @@ export default function App() {
           <Routes>
             {/* Layout wrapper */}
             <Route element={<Layout />}>
-              {/* Public routes */}
-              <Route index element={<HomePage />} />
-              <Route path="events/:id" element={<EventDetailPage />} />
+              {/* Public routes (not accessible to SCANNER/SALES_EXECUTIVE) */}
+              <Route element={<ProtectedRoute roles={['USER', 'ADMIN']} allowPublic={true} />}>
+                <Route index element={<HomePage />} />
+                <Route path="events/:id" element={<EventDetailPage />} />
+              </Route>
+              
+              {/* Auth routes */}
               <Route path="login" element={<LoginPage />} />
               <Route path="register" element={<RegisterPage />} />
               <Route path="verify-email" element={<VerifyEmailPage />} />
@@ -99,7 +103,7 @@ export default function App() {
                 <Route path="scanner" element={<ScannerPage />} />
               </Route>
 
-              {/* Sales Executive – requires SALES_EXECUTIVE role */}
+              {/* Sales Executive – requires SALES_EXECUTIVE or ADMIN role */}
               <Route element={<ProtectedRoute roles={['SALES_EXECUTIVE', 'ADMIN']} />}>
                 <Route path="sales" element={<SalesLayout />}>
                   <Route index element={<Navigate to="/sales/customers" replace />} />

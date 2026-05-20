@@ -1,14 +1,18 @@
 import { useState, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Ticket } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authApi } from '../api/auth';
+import { useAuth } from '../contexts/AuthContext';
 import { Spinner } from '../components/ui/Spinner';
 
 export function VerifyEmailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const email = (location.state as { email?: string })?.email || '';
+  const { setSession } = useAuth();
+  const email = (location.state as { email?: string; from?: string })?.email || '';
+  const from = (location.state as { email?: string; from?: string })?.from ?? '/';
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,9 +37,20 @@ export function VerifyEmailPage() {
     if (code.length < 6) { toast.error('Enter the full 6-digit code'); return; }
     setIsLoading(true);
     try {
-      await authApi.verifyEmail({ email, otp: code });
-      toast.success('Email verified! Please login.');
-      navigate('/login');
+      const { data } = await authApi.verifyEmail({ email, otp: code });
+      if (data.accessToken && data.refreshToken && data.user) {
+        // flushSync forces React to apply setUser synchronously before navigate()
+        // so EventDetailPage renders with isAuthenticated=true from the first render
+        flushSync(() => {
+          setSession(data.accessToken!, data.refreshToken!, data.user!);
+        });
+        toast.success('Email verified! Welcome to Banglafest.');
+        navigate(from, { replace: true });
+      } else {
+        // Backend returned no tokens (old build) — send to login preserving destination
+        toast.success('Email verified! Please log in to continue.');
+        navigate('/login', { state: { from }, replace: true });
+      }
     } finally {
       setIsLoading(false);
     }

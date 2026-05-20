@@ -11,10 +11,20 @@ const links = [
 export function DashboardLayout() {
   const { user } = useAuth();
 
+  // Filter links based on user role
+  // SCANNER and SALES_EXECUTIVE only see Profile
+  // USER and ADMIN see all dashboard links
+  const isScannnerOrSales = user?.role === 'SCANNER' || user?.role === 'SALES_EXECUTIVE';
+  const visibleLinks = isScannnerOrSales
+    ? links.filter(link => link.label === 'Profile')
+    : links;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-white">
+          {isScannnerOrSales ? 'My Account' : 'Dashboard'}
+        </h1>
         <p className="text-gray-400">Welcome back, {user?.name}</p>
       </div>
 
@@ -22,7 +32,7 @@ export function DashboardLayout() {
         {/* Sidebar */}
         <aside className="w-full md:w-56 shrink-0">
           <nav className="flex flex-row md:flex-col gap-1">
-            {links.map(({ to, icon: Icon, label, end }) => (
+            {visibleLinks.map(({ to, icon: Icon, label, end }) => (
               <NavLink
                 key={to}
                 to={to}

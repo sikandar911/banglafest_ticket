@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Ticket, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authApi } from '../api/auth';
@@ -9,6 +9,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string })?.from ?? '/';
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
@@ -55,7 +57,7 @@ export function RegisterPage() {
     try {
       await authApi.register(form);
       toast.success('Account created! Please check your email for the verification code.');
-      navigate('/verify-email', { state: { email: form.email } });
+      navigate('/verify-email', { state: { email: form.email, from } });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       toast.error(error?.response?.data?.error || 'Registration failed');
@@ -146,7 +148,7 @@ export function RegisterPage() {
 
         <p className="text-center text-gray-400 mt-4">
           Already have an account?{' '}
-          <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium">
+          <Link to="/login" state={{ from }} className="text-primary-400 hover:text-primary-300 font-medium">
             Sign in
           </Link>
         </p>

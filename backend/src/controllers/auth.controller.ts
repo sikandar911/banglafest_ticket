@@ -88,14 +88,23 @@ export async function verifyEmail(req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    const accessToken = signAccessToken({ id: user.id, email: user.email, role: user.role });
+    const refreshToken = signRefreshToken({ id: user.id });
+    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+
     await prisma.user.update({
       where: { email },
-      data: { isVerified: true, otpCode: null, otpExpiresAt: null },
+      data: { isVerified: true, otpCode: null, otpExpiresAt: null, refreshToken: hashedRefresh },
     });
 
     await sendWelcomeEmail(user.email, user.name);
 
-    res.json({ message: 'Email verified successfully. You can now log in.' });
+    res.json({
+      message: 'Email verified successfully.',
+      accessToken,
+      refreshToken,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
   } catch (err) {
     next(err);
   }

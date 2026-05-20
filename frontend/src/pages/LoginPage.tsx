@@ -9,7 +9,7 @@ export function LoginPage() {
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+  const from = (location.state as { from?: string })?.from ?? '/';
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -88,7 +88,7 @@ export function LoginPage() {
 
         <p className="text-center text-gray-400 mt-4">
           Don't have an account?{' '}
-          <Link to="/register" className="text-primary-400 hover:text-primary-300 font-medium">
+          <Link to="/register" state={{ from }} className="text-primary-400 hover:text-primary-300 font-medium">
             Register
           </Link>
         </p>

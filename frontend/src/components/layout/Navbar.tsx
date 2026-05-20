@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Ticket, LogOut, LayoutDashboard, ScanLine, ShieldCheck, Menu, X, TrendingUp } from 'lucide-react';
+import { Ticket, LogOut, LayoutDashboard, ScanLine, ShieldCheck, Menu, X, TrendingUp, User } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -15,6 +15,11 @@ export function Navbar() {
     navigate('/login');
   };
 
+  // Check if user is scanner or sales executive
+  const isScannerOrSales = user?.role === 'SCANNER' || user?.role === 'SALES_EXECUTIVE';
+  // Check if user is regular user or admin (can see events)
+  const canViewEvents = !isScannerOrSales;
+
   return (
     <header className="sticky top-0 z-50 bg-gray-900/80 backdrop-blur border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -27,10 +32,12 @@ export function Navbar() {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">
-            <Link to="/" className="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors text-sm font-medium">
-              Events
-            </Link>
-            {isAuthenticated && (
+            {canViewEvents && (
+              <Link to="/" className="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors text-sm font-medium">
+                Events
+              </Link>
+            )}
+            {isAuthenticated && !isScannerOrSales && (
               <Link to="/dashboard" className="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors text-sm font-medium flex items-center gap-1.5">
                 <LayoutDashboard className="w-4 h-4" />
                 Dashboard
@@ -48,10 +55,16 @@ export function Navbar() {
                 Scanner
               </Link>
             )}
-            {user?.role === 'SALES_EXECUTIVE' && (
+            {(user?.role === 'SALES_EXECUTIVE' || user?.role === 'ADMIN') && (
               <Link to="/sales/customers" className="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors text-sm font-medium flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4" />
                 Sales
+              </Link>
+            )}
+            {isScannerOrSales && (
+              <Link to="/dashboard" className="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors text-sm font-medium flex items-center gap-1.5">
+                <User className="w-4 h-4" />
+                Profile
               </Link>
             )}
           </nav>
@@ -83,8 +96,10 @@ export function Navbar() {
         {/* Mobile nav */}
         {open && (
           <div className="md:hidden py-4 border-t border-gray-800 flex flex-col gap-2">
-            <Link to="/" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800">Events</Link>
-            {isAuthenticated && (
+            {canViewEvents && (
+              <Link to="/" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800">Events</Link>
+            )}
+            {isAuthenticated && !isScannerOrSales && (
               <Link to="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 flex items-center gap-2">
                 <LayoutDashboard className="w-4 h-4" /> Dashboard
               </Link>
@@ -99,9 +114,14 @@ export function Navbar() {
                 <ScanLine className="w-4 h-4" /> Scanner
               </Link>
             )}
-            {user?.role === 'SALES_EXECUTIVE' && (
+            {(user?.role === 'SALES_EXECUTIVE' || user?.role === 'ADMIN') && (
               <Link to="/sales/customers" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" /> Sales
+              </Link>
+            )}
+            {isScannerOrSales && (
+              <Link to="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 flex items-center gap-2">
+                <User className="w-4 h-4" /> Profile
               </Link>
             )}
             <div className="pt-2 border-t border-gray-800 flex flex-col gap-2">

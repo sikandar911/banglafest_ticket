@@ -6,7 +6,7 @@ export const authApi = {
     api.post<{ message: string; userId: string }>('/api/auth/register', data),
 
   verifyEmail: (data: { email: string; otp: string }) =>
-    api.post<{ message: string }>('/api/auth/verify-email', data),
+    api.post<{ message: string; accessToken?: string; refreshToken?: string; user?: import('../types').User }>('/api/auth/verify-email', data),
 
   resendOtp: (email: string) =>
     api.post<{ message: string }>('/api/auth/resend-otp', { email }),

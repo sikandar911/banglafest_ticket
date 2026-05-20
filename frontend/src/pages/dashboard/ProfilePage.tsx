@@ -1,15 +1,58 @@
-import { useQuery } from '@tanstack/react-query';
-import { Mail, User as UserIcon, Shield } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Mail, User as UserIcon, Shield, Lock } from 'lucide-react';
+import { useState } from 'react';
 import { userApi } from '../../api/user';
 import { PageSpinner } from '../../components/ui/Spinner';
 import { RoleBadge } from '../../components/ui/Badge';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 
 export function ProfilePage() {
   const { data, isLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: () => userApi.getProfile().then((r) => r.data),
   });
+
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const changePasswordMutation = useMutation({
+    mutationFn: () => userApi.changePassword(currentPassword, newPassword).then((r) => r.data),
+    onSuccess: () => {
+      toast.success('Password changed successfully!');
+      setShowPasswordForm(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || 'Failed to change password';
+      toast.error(errorMessage);
+    },
+  });
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('All fields are required');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters');
+      return;
+    }
+
+    changePasswordMutation.mutate();
+  };
 
   if (isLoading) return <PageSpinner />;
   const user = data?.user;
@@ -49,6 +92,67 @@ export function ProfilePage() {
             <span className="text-white ml-auto">{format(new Date(user.createdAt), 'MMM d, yyyy')}</span>
           </div>
         </div>
+      </div>
+
+      {/* Change Password Section */}
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Lock className="w-5 h-5" />
+            Password
+          </h3>
+          <button
+            onClick={() => setShowPasswordForm(!showPasswordForm)}
+            className="btn-secondary py-1.5 text-sm"
+          >
+            {showPasswordForm ? 'Cancel' : 'Change Password'}
+          </button>
+        </div>
+
+        {showPasswordForm && (
+          <form onSubmit={handleChangePassword} className="border-t border-gray-800 pt-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Current Password</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter your current password"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min 8 characters)"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={changePasswordMutation.isPending}
+              className="w-full btn-primary py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

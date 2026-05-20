@@ -39,4 +39,8 @@ export const salesApi = {
   // Download all tickets for a customer as PDF
   downloadCustomerTicketsPdf: (attendeeId: string) =>
     api.get<Blob>(`/api/sales/customers/${attendeeId}/print-tickets`, { responseType: 'blob' }),
+
+  // Set attendee names for each ticket in an order (sales executive flow)
+  setAttendeeNames: (orderId: string, names: string[]) =>
+    api.patch<{ message: string }>(`/api/orders/${orderId}/attendee-names`, { names }),
 };

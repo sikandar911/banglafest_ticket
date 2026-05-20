@@ -9,6 +9,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
+  setSession: (accessToken: string, refreshToken: string, userData: User) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -52,9 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = useCallback((u: User) => setUser(u), []);
 
+  const setSession = useCallback((accessToken: string, refreshToken: string, userData: User) => {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('user', JSON.stringify(userData)); // sync write so page reloads always see the session
+    setUser(userData);
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isAuthenticated: !!user, login, logout, updateUser }}
+      value={{ user, isLoading, isAuthenticated: !!user, login, logout, updateUser, setSession }}
     >
       {children}
     </AuthContext.Provider>

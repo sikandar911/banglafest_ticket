@@ -9,4 +9,7 @@ export const ordersApi = {
     api.post<{ orderId: string }>(`/api/orders/${orderId}/confirm`),
 
   get: (id: string) => api.get<{ order: Order }>(`/api/orders/${id}`),
+
+  setAttendeeNames: (orderId: string, names: string[]) =>
+    api.patch<{ message: string }>(`/api/orders/${orderId}/attendee-names`, { names }),
 };
