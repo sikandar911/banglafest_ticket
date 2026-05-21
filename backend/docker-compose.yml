@@ -1,22 +1,22 @@
 version: '3.9'
 
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (Internal Docker)
   db:
     image: postgres:15-alpine
     container_name: banglafest_db
     environment:
-      POSTGRES_USER: ${DB_USER:-banglafest}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
-      POSTGRES_DB: ${DB_NAME:-banglafest}
+      POSTGRES_USER: postgresamb
+      POSTGRES_PASSWORD: sikku321
+      POSTGRES_DB: ticketbanglafest
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - banglafest_backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-banglafest}"]
+      test: ["CMD-SHELL", "pg_isready -U postgresamb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,21 +31,21 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 5000
-      DATABASE_URL: postgresql://${DB_USER:-banglafest}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-banglafest}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-your-secret-key-change-in-production}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-key-change-in-production}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
-      FRONTEND_URL: ${FRONTEND_URL:-http://ticket.banglafest.co.uk}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      EMAIL_FROM: ${EMAIL_FROM:-noreply@banglafest.co.uk}
-      OTP_EXPIRES_IN_MINUTES: ${OTP_EXPIRES_IN_MINUTES:-15}
+      DATABASE_URL: postgresql://postgresamb:sikku321@db:5432/ticketbanglafest?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      FRONTEND_URL: ${FRONTEND_URL}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      OTP_EXPIRES_IN_MINUTES: ${OTP_EXPIRES_IN_MINUTES}
     ports:
       - "${BACKEND_PORT:-5000}:5000"
     depends_on:
@@ -58,6 +58,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  banglafest_backend:
+    driver: bridge
       start_period: 10s
     restart: unless-stopped
 

@@ -38,8 +38,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy public assets if they exist
-COPY public ./public 2>/dev/null || true
+# Create public directory if it doesn't exist
+RUN mkdir -p ./public || true
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

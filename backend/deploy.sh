@@ -69,20 +69,6 @@ stop_containers() {
     fi
 }
 
-# Clean migration locks
-clean_migration_locks() {
-    log_info "Checking for migration locks..."
-    
-    if docker-compose up -d db; then
-        sleep 10
-        
-        if docker-compose exec -T db psql -U "${DB_USER:-banglafest}" -d "${DB_NAME:-banglafest}" \
-            -c "DELETE FROM \"_prisma_migrations\" WHERE \"finished_at\" IS NULL AND \"rolled_back_at\" IS NOT NULL;" 2>/dev/null || true; then
-            log_success "Migration locks cleaned"
-        fi
-    fi
-}
-
 # Build Docker image
 build_images() {
     log_info "Building Docker image..."
@@ -113,7 +99,7 @@ wait_for_db() {
     
     local count=0
     while [ $count -lt $MAX_RETRIES ]; do
-        if docker-compose exec -T db pg_isready -U "${DB_USER:-banglafest}" > /dev/null 2>&1; then
+        if docker-compose exec -T db pg_isready -U postgresamb > /dev/null 2>&1; then
             log_success "Database is ready"
             return 0
         fi
@@ -129,7 +115,7 @@ wait_for_db() {
     exit 1
 }
 
-# Run migrations
+# Run migrations (with internal database)
 run_migrations() {
     log_info "Running Prisma migrations..."
     
@@ -137,7 +123,7 @@ run_migrations() {
         log_success "Migrations completed successfully"
     else
         local exit_code=$?
-        log_warning "Migration returned exit code $exit_code. Checking backend health..."
+        log_warning "Migration returned exit code $exit_code (may be ok if already migrated)"
     fi
 }
 
@@ -178,14 +164,16 @@ show_summary() {
     echo "║   Local: http://localhost:5000                            ║"
     echo "║   Container: banglafest_backend                           ║"
     echo "║                                                            ║"
-    echo "║ Database (PostgreSQL):                                    ║"
+    echo "║ Database (PostgreSQL - Internal Docker):                  ║"
     echo "║   Container: banglafest_db                                ║"
-    echo "║   Port: 5432                                              ║"
+    echo "║   Port: 5432 (Docker network)                             ║"
+    echo "║   Volume: postgres_data (persistent)                      ║"
     echo "║                                                            ║"
     echo "║ Useful Commands:                                           ║"
     echo "║   docker-compose logs -f backend                          ║"
     echo "║   docker-compose logs -f db                               ║"
-    echo "║   docker-compose exec backend npm run build               ║"
+    echo "║   docker-compose exec db psql -U postgresamb              ║"
+    echo "║   curl http://localhost:5000                              ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
@@ -207,7 +195,6 @@ main() {
     
     check_prerequisites
     stop_containers
-    clean_migration_locks
     build_images
     start_services
     wait_for_db

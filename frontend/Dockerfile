@@ -31,7 +31,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Create non-root user
 RUN addgroup -g 1001 -S nginx && \
-    adduser -S nginx -u 1001 || true
+  adduser -S nginx -u 1001 || true
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
