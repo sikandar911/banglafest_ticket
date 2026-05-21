@@ -164,15 +164,14 @@ show_summary() {
     echo "║   Local: http://localhost:5000                            ║"
     echo "║   Container: banglafest_backend                           ║"
     echo "║                                                            ║"
-    echo "║ Database (PostgreSQL - Internal Docker):                  ║"
-    echo "║   Container: banglafest_db                                ║"
-    echo "║   Port: 5432 (Docker network)                             ║"
-    echo "║   Volume: postgres_data (persistent)                      ║"
+    echo "║ Database (External PostgreSQL):                           ║"
+    echo "║   Location: localhost:5432                                ║"
+    echo "║   User: postgresamb                                       ║"
+    echo "║   Database: ticketbanglafest                              ║"
     echo "║                                                            ║"
     echo "║ Useful Commands:                                           ║"
     echo "║   docker-compose logs -f backend                          ║"
-    echo "║   docker-compose logs -f db                               ║"
-    echo "║   docker-compose exec db psql -U postgresamb              ║"
+    echo "║   docker-compose ps                                       ║"
     echo "║   curl http://localhost:5000                              ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
@@ -197,7 +196,6 @@ main() {
     stop_containers
     build_images
     start_services
-    wait_for_db
     run_migrations
     wait_for_backend
     
