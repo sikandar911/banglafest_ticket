@@ -68,13 +68,3 @@ volumes:
 networks:
   banglafest_backend:
     driver: bridge
-      start_period: 10s
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-    driver: local
-
-networks:
-  banglafest_backend:
-    driver: bridge
