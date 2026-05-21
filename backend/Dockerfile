@@ -43,7 +43,7 @@ RUN mkdir -p ./public || true
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+  adduser -S nodejs -u 1001
 
 USER nodejs
 
