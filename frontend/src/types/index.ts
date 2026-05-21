@@ -104,6 +104,16 @@ export interface RevenueData {
   salesExecRevenue?: number;
   salesExecOrders?: number;
   salesExecTickets?: number;
+  onlineRevenue?: number;
+}
+
+export interface SalesExecutiveBreakdown {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  revenue: number;
+  orders: number;
+  tickets: number;
 }
 
 export interface AdminUser {

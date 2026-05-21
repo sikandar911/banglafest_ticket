@@ -1,5 +1,5 @@
 import api from './client';
-import type { Event, TicketTier, AdminUser, Order, RevenueData, PromoCode } from '../types';
+import type { Event, TicketTier, AdminUser, Order, RevenueData, PromoCode, SalesExecutiveBreakdown } from '../types';
 
 export const adminApi = {
   // Events
@@ -20,7 +20,7 @@ export const adminApi = {
     api.put<{ tier: TicketTier }>(`/api/admin/tiers/${tierId}`, data),
 
   // Revenue
-  getRevenue: () => api.get<{ revenue: RevenueData }>('/api/admin/revenue'),
+  getRevenue: () => api.get<{ revenue: RevenueData; salesExecutiveBreakdown: SalesExecutiveBreakdown[] }>('/api/admin/revenue'),
 
   // Users
   listUsers: (params?: { page?: number; limit?: number }) =>

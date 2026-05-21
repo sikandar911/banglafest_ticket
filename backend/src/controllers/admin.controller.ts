@@ -273,9 +273,43 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
       },
     });
 
+    // Get sales executive user-wise breakdown
+    const salesExecutiveBreakdown = await prisma.order.groupBy({
+      by: ['salesExecutiveId'],
+      where: { status: 'PAID', salesExecutiveId: { not: null } },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+    });
+
+    // Fetch sales executive user details
+    const salesExecIds = salesExecutiveBreakdown.map(s => s.salesExecutiveId).filter(Boolean) as string[];
+    const salesExecUsers = await prisma.user.findMany({
+      where: { id: { in: salesExecIds } },
+      select: { id: true, name: true, email: true },
+    });
+
+    // Combine and enrich breakdown data
+    const enrichedSalesExecBreakdown = await Promise.all(
+      salesExecutiveBreakdown.map(async (breakdown) => {
+        const user = salesExecUsers.find(u => u.id === breakdown.salesExecutiveId);
+        const ticketCount = await prisma.ticket.count({
+          where: { order: { salesExecutiveId: breakdown.salesExecutiveId, status: 'PAID' } },
+        });
+        return {
+          userId: breakdown.salesExecutiveId,
+          userName: user?.name || 'Unknown',
+          userEmail: user?.email || '',
+          revenue: Number(breakdown._sum.totalAmount ?? 0),
+          orders: breakdown._count.id,
+          tickets: ticketCount,
+        };
+      })
+    );
+
     const totalRevenue = Number(result._sum.totalAmount ?? 0);
     const refundedAmount = Number(refundedResult._sum.totalAmount ?? 0);
     const salesExecRevenue = Number(salesExecResult._sum.totalAmount ?? 0);
+    const onlineRevenue = totalRevenue - salesExecRevenue;
 
     res.json({
       revenue: {
@@ -288,7 +322,9 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
         salesExecRevenue,
         salesExecOrders: salesExecResult._count.id,
         salesExecTickets: salesExecTicketCount,
+        onlineRevenue,
       },
+      salesExecutiveBreakdown: enrichedSalesExecBreakdown,
       recentOrders: recentOrders.map((o) => ({ ...o, totalAmount: Number(o.totalAmount) })),
     });
   } catch (err) {
