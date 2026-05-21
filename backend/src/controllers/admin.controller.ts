@@ -5,8 +5,6 @@ import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
 import {
   sendTicketConfirmationEmail,
-  sendRefundConfirmationEmail,
-  sendStaffWelcomeEmail,
 } from '../services/email.service';
 import { generateTicketPdf } from '../services/pdf.service';
 
@@ -372,10 +370,6 @@ export async function createUser(req: Request, res: Response, next: NextFunction
       select: { id: true, name: true, email: true, role: true, isVerified: true, createdAt: true },
     });
 
-    sendStaffWelcomeEmail(email, name, role, password).catch((err) =>
-      console.error('[createUser] Failed to send welcome email:', err)
-    );
-
     res.status(201).json({ user });
   } catch (err) {
     next(err);
@@ -496,15 +490,6 @@ export async function refundOrder(req: Request, res: Response, next: NextFunctio
       }),
     ]);
 
-    // Email is best-effort — don't fail the refund if email service is down
-    sendRefundConfirmationEmail(order.user.email, order.user.name, {
-      orderId: order.id,
-      amount: Number(order.totalAmount),
-      eventTitle: order.ticketTier.event.title,
-      tierName: order.ticketTier.name,
-      quantity: order.quantity,
-    }).catch((err) => console.error('[refund] Failed to send confirmation email:', err));
-
     res.json({
       message: stripeRefunded
         ? 'Order refunded via Stripe and tickets cancelled.'
@@ -524,7 +509,7 @@ export async function resendTicket(req: Request, res: Response, next: NextFuncti
       include: {
         user: { select: { name: true, email: true } },
         ticketTier: { include: { event: true } },
-        order: { select: { id: true } },
+        order: { select: { id: true, totalAmount: true } },
       },
     });
 
@@ -558,9 +543,15 @@ export async function resendTicket(req: Request, res: Response, next: NextFuncti
       ticket.user.name,
       [{ ticketId: ticket.id, pdfBuffer }],
       {
+        orderId: ticket.order.id,
         eventTitle: ticket.ticketTier.event.title,
         tierName: ticket.ticketTier.name,
         eventDate: ticket.ticketTier.event.startTime,
+        eventStartTime: ticket.ticketTier.event.startTime,
+        eventVenue: ticket.ticketTier.event.location ?? 'TBD',
+        quantity: 1,
+        unitPrice: Number(ticket.ticketTier.price),
+        totalAmount: Number(ticket.order.totalAmount),
       }
     );
 
@@ -617,9 +608,15 @@ export async function resendOrderTickets(req: Request, res: Response, next: Next
       order.user.name,
       activeTickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
       {
+        orderId: order.id,
         eventTitle: order.ticketTier.event.title,
         tierName: order.ticketTier.name,
         eventDate: order.ticketTier.event.startTime,
+        eventStartTime: order.ticketTier.event.startTime,
+        eventVenue: order.ticketTier.event.location ?? 'TBD',
+        quantity: activeTickets.length,
+        unitPrice: Number(order.ticketTier.price),
+        totalAmount: Number(order.totalAmount),
       }
     );
 
@@ -727,9 +724,15 @@ export async function bypassBookTicket(req: AuthRequest, res: Response, next: Ne
         pdfBuffer: pdfBuffers[idx],
       })),
       {
+        orderId: order.id,
         eventTitle: order.ticketTier.event.title,
         tierName: order.ticketTier.name,
         eventDate: order.ticketTier.event.startTime,
+        eventStartTime: order.ticketTier.event.startTime,
+        eventVenue: order.ticketTier.event.location ?? 'TBD',
+        quantity: quantity,
+        unitPrice: Number(order.ticketTier.price),
+        totalAmount: Number(order.totalAmount),
       }
     );
 

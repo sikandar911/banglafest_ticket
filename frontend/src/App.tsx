@@ -16,6 +16,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { CheckoutSuccessPage } from './pages/CheckoutSuccessPage';
 import { CheckoutCancelPage } from './pages/CheckoutCancelPage';
+import { TermsAndConditionsPage } from './pages/TermsAndConditionsPage';
 
 // Dashboard pages
 import { DashboardLayout } from './pages/dashboard/DashboardLayout';
@@ -69,6 +70,7 @@ export default function App() {
               <Route path="verify-email" element={<VerifyEmailPage />} />
               <Route path="forgot-password" element={<ForgotPasswordPage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
+              <Route path="terms" element={<TermsAndConditionsPage />} />
               <Route path="checkout/success" element={<CheckoutSuccessPage />} />
               <Route path="checkout/cancel" element={<CheckoutCancelPage />} />
 

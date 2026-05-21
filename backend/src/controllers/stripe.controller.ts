@@ -1,5 +1,6 @@
 import { Response, NextFunction, Request } from 'express';
 import Stripe from 'stripe';
+import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
 import {
@@ -113,7 +114,12 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { user: true, ticketTier: { include: { event: true } } },
+    include: { 
+      user: true, 
+      ticketTier: { 
+        select: { id: true, name: true, price: true, features: true, event: true }
+      }
+    },
   });
 
   // Idempotent: if frontend already confirmed the order, skip
@@ -128,7 +134,12 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { user: true, ticketTier: { include: { event: true } } },
+    include: { 
+      user: true, 
+      ticketTier: { 
+        select: { id: true, name: true, price: true, features: true, event: true }
+      }
+    },
   });
   if (!order || order.status !== 'PENDING') return;
 
@@ -170,7 +181,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session): Promise<
 async function fulfillOrder(
   order: Awaited<ReturnType<typeof prisma.order.findUnique>> & {
     user: { name: string; email: string };
-    ticketTier: { name: string; features: string | null; event: { title: string; startTime: Date; location: string | null; performers: string | null; specialAdditions: string | null } };
+    ticketTier: { id: string; name: string; price: Decimal; features: string | null; event: { title: string; startTime: Date; location: string | null; performers: string | null; specialAdditions: string | null } };
   },
   paymentIntentId?: string
 ): Promise<void> {
@@ -229,9 +240,15 @@ async function fulfillOrder(
     order!.user.name,
     tickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
     {
+      orderId: order!.id,
       eventTitle: order!.ticketTier.event.title,
       tierName: order!.ticketTier.name,
       eventDate: order!.ticketTier.event.startTime,
+      eventStartTime: order!.ticketTier.event.startTime,
+      eventVenue: order!.ticketTier.event.location ?? 'TBD',
+      quantity: order!.quantity,
+      unitPrice: Number(order!.ticketTier.price),
+      totalAmount: Number(order!.totalAmount),
     }
   );
 }

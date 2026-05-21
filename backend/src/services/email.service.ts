@@ -63,37 +63,6 @@ export async function sendPasswordResetEmail(
   });
 }
 
-// ─── Send Welcome Email ───────────────────────────────────────────────────────
-export async function sendWelcomeEmail(email: string, name: string): Promise<void> {
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: email,
-    subject: 'Welcome to Banglafest — you\'re all set! 🎉',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0;">🎟️ Banglafest</h1>
-          <p style="margin: 8px 0 0; opacity: 0.8;">Your account is verified!</p>
-        </div>
-        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
-          <h2 style="color: #1a1a2e;">Welcome, ${name}! 🎉</h2>
-          <p>Your email has been verified and your Banglafest account is ready to go.</p>
-          <p>You can now browse events, purchase tickets, and manage your orders from your dashboard.</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.FRONTEND_URL}/events"
-               style="background: #e94560; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold;">
-              Browse Events
-            </a>
-          </div>
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            If you did not create this account, please contact us immediately.
-          </p>
-        </div>
-      </div>
-    `,
-  });
-}
-
 // ─── Send Password Changed Confirmation Email ─────────────────────────────────
 export async function sendPasswordChangedEmail(email: string, name: string): Promise<void> {
   await transporter.sendMail({
@@ -118,62 +87,6 @@ export async function sendPasswordChangedEmail(email: string, name: string): Pro
               Reset Password
             </a>
           </div>
-        </div>
-      </div>
-    `,
-  });
-}
-
-// ─── Send Refund Confirmation Email ───────────────────────────────────────────
-export async function sendRefundConfirmationEmail(
-  email: string,
-  name: string,
-  refundInfo: {
-    orderId: string;
-    amount: number;
-    eventTitle: string;
-    tierName: string;
-    quantity: number;
-  }
-): Promise<void> {
-  const formattedAmount = refundInfo.amount.toFixed(2);
-
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: email,
-    subject: `Your Banglafest refund of $${formattedAmount} has been processed`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0;">🎟️ Banglafest</h1>
-          <p style="margin: 8px 0 0; opacity: 0.8;">Refund Confirmation</p>
-        </div>
-        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
-          <p>Hi <strong>${name}</strong>,</p>
-          <p>Your refund has been successfully processed. Here are the details:</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-            <tr style="border-bottom: 1px solid #ddd;">
-              <td style="padding: 10px 0; color: #666;">Order ID</td>
-              <td style="padding: 10px 0; font-weight: bold; text-align: right;">${refundInfo.orderId}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #ddd;">
-              <td style="padding: 10px 0; color: #666;">Event</td>
-              <td style="padding: 10px 0; font-weight: bold; text-align: right;">${refundInfo.eventTitle}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #ddd;">
-              <td style="padding: 10px 0; color: #666;">Ticket Tier</td>
-              <td style="padding: 10px 0; font-weight: bold; text-align: right;">${refundInfo.tierName} × ${refundInfo.quantity}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0; color: #666;">Refund Amount</td>
-              <td style="padding: 10px 0; font-weight: bold; text-align: right; color: #e94560; font-size: 18px;">$${formattedAmount}</td>
-            </tr>
-          </table>
-          <p>The refund will appear on your original payment method within <strong>5–10 business days</strong> depending on your bank.</p>
-          <p>Your tickets for this order have been cancelled and are no longer valid.</p>
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            Questions? Visit your account at <a href="${process.env.FRONTEND_URL}">${process.env.FRONTEND_URL}</a>.
-          </p>
         </div>
       </div>
     `,
@@ -219,15 +132,21 @@ export async function sendOrderExpiredEmail(
   });
 }
 
-// ─── Send Ticket Confirmation Email ───────────────────────────────────────────
+// ─── Send Ticket Confirmation Email with Invoice ────────────────────────────
 export async function sendTicketConfirmationEmail(
   email: string,
   name: string,
   tickets: Array<{ ticketId: string; pdfBuffer: Buffer }>,
-  eventInfo: {
+  orderInfo: {
+    orderId: string;
     eventTitle: string;
     tierName: string;
     eventDate: Date;
+    eventStartTime: Date;
+    eventVenue: string;
+    quantity: number;
+    unitPrice: number;
+    totalAmount: number;
   }
 ): Promise<void> {
   const attachments = tickets.map((t, i) => ({
@@ -237,10 +156,22 @@ export async function sendTicketConfirmationEmail(
   }));
 
   const ticketCount = tickets.length;
-  const eventDateStr = eventInfo.eventDate.toLocaleDateString('en-US', {
+  const eventDateStr = orderInfo.eventDate.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
+    day: 'numeric',
+  });
+
+  const eventTimeStr = orderInfo.eventStartTime.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const invoiceDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
     day: 'numeric',
   });
 
@@ -249,21 +180,119 @@ export async function sendTicketConfirmationEmail(
     to: email,
     subject: `Your Banglafest Ticket${ticketCount > 1 ? 's are' : ' is'} confirmed! 🎉`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
+        <!-- Header -->
         <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+          <img src="${process.env.FRONTEND_URL}/banglafest%20logo.png" alt="Banglafest Logo" style="max-width: 120px; height: auto; margin-bottom: 15px;">
+          <h1 style="margin: 0;">Banglafest</h1>
           <p style="margin: 8px 0 0; opacity: 0.8;">Your ticket${ticketCount > 1 ? 's are' : ' is'} confirmed!</p>
         </div>
+
+        <!-- Content -->
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
           <p>Hi <strong>${name}</strong>,</p>
-          <p>Thank you for your purchase! Your ${ticketCount} x <strong>${eventInfo.tierName}</strong> ticket${ticketCount > 1 ? 's' : ''} for <strong>${eventInfo.eventTitle}</strong> on <strong>${eventDateStr}</strong> ${ticketCount > 1 ? 'are' : 'is'} attached as PDF${ticketCount > 1 ? 's' : ''} to this email.</p>
-          <p>Please present the QR code at the gate for entry.</p>
-          <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin: 20px 0;">
-            <strong>⚠️ Important:</strong> Each QR code is unique and can only be scanned once.
+          <p>Thank you for your purchase! Your order details are below.</p>
+
+          <!-- Invoice Section -->
+          <div style="background: white; border: 1px solid #ddd; border-radius: 6px; padding: 20px; margin: 20px 0;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 2px solid #e94560;">
+              <div>
+                <p style="margin: 0; color: #666; font-size: 12px;">ORDER NUMBER</p>
+                <p style="margin: 5px 0 0; font-weight: bold; font-size: 13px; color: #1a1a2e;">${orderInfo.orderId}</p>
+              </div>
+              <div style="text-align: right;">
+                <p style="margin: 0; color: #666; font-size: 12px;">ORDER DATE</p>
+                <p style="margin: 5px 0 0; font-weight: bold; color: #1a1a2e;">${invoiceDate}</p>
+              </div>
+            </div>
+
+            <!-- Customer Info -->
+            <div style="margin-bottom: 20px;">
+              <p style="margin: 0; color: #666; font-size: 12px;">BILL TO:</p>
+              <p style="margin: 5px 0 0; font-weight: bold; color: #1a1a2e;">${name}</p>
+              <p style="margin: 3px 0 0; color: #666; font-size: 14px;">${email}</p>
+            </div>
+
+            <!-- Event Details -->
+            <div style="background: #f0f0f0; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+              <p style="margin: 0 0 10px 0; font-weight: bold; color: #1a1a2e; font-size: 14px;">EVENT DETAILS</p>
+              <table style="width: 100%; font-size: 14px;">
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 8px 0; color: #666;">Event:</td>
+                  <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #1a1a2e;">${orderInfo.eventTitle}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 8px 0; color: #666;">Date:</td>
+                  <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #1a1a2e;">${eventDateStr}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 8px 0; color: #666;">Start Time:</td>
+                  <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #1a1a2e;">${eventTimeStr}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #666;">Venue:</td>
+                  <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #1a1a2e;">${orderInfo.eventVenue || 'TBD'}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Ticket Summary Table -->
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+              <thead>
+                <tr style="background: #1a1a2e; color: white;">
+                  <th style="padding: 12px; text-align: left;">Description</th>
+                  <th style="padding: 12px; text-align: center;">Qty</th>
+                  <th style="padding: 12px; text-align: right;">Unit Price</th>
+                  <th style="padding: 12px; text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 12px; color: #1a1a2e;">${orderInfo.tierName} Ticket${ticketCount > 1 ? 's' : ''}</td>
+                  <td style="padding: 12px; text-align: center; color: #1a1a2e;">${orderInfo.quantity}</td>
+                  <td style="padding: 12px; text-align: right; color: #1a1a2e;">£${orderInfo.unitPrice.toFixed(2)}</td>
+                  <td style="padding: 12px; text-align: right; color: #1a1a2e;">£${(orderInfo.unitPrice * orderInfo.quantity).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Total Amount -->
+            <div style="text-align: right; padding-top: 15px; border-top: 2px solid #e94560;">
+              <p style="margin: 0 0 10px 0; color: #666; font-size: 12px;">TOTAL AMOUNT</p>
+              <p style="margin: 0; font-size: 28px; font-weight: bold; color: #e94560;">£${orderInfo.totalAmount.toFixed(2)}</p>
+              <p style="margin: 5px 0 0; color: #666; font-size: 12px;">Order Status: <strong>Completed</strong></p>
+            </div>
           </div>
-          <p>See you at the festival! 🎉</p>
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            Lost your ticket? Log in to your account at <a href="${process.env.FRONTEND_URL}">${process.env.FRONTEND_URL}</a> to re-download it.
+
+          <!-- Entry Instructions -->
+          <div style="background: #e8f4f8; border: 1px solid #0066cc; border-radius: 6px; padding: 20px; margin: 20px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #0066cc; font-size: 16px;">✓ Entry Instructions</h3>
+            <p style="margin: 0 0 12px 0; color: #1a1a2e;">You can bring this ticket in two ways:</p>
+            <ol style="margin: 0 0 15px 0; padding-left: 20px; color: #1a1a2e;">
+              <li style="margin-bottom: 8px;"><strong>Printed Copy</strong> — Print this email or the attached PDF and present at entry</li>
+              <li><strong>Digital Copy</strong> — Show the QR code on your mobile phone at entry</li>
+            </ol>
+            <p style="margin: 12px 0; color: #666; font-size: 14px;"><strong>Each QR code is unique and can only be scanned once.</strong> Do not share your QR code with others.</p>
+          </div>
+
+          <!-- Event Day Info -->
+          <div style="background: #f0f0f0; border-radius: 6px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #1a1a2e;">📍 On Event Day</p>
+            <p style="margin: 0 0 8px 0; color: #666;"><strong>Date:</strong> ${eventDateStr}</p>
+            <p style="margin: 0 0 8px 0; color: #666;"><strong>Start Time:</strong> ${eventTimeStr}</p>
+            <p style="margin: 0; color: #666;"><strong>Venue:</strong> ${orderInfo.eventVenue || 'Location TBD'}</p>
+          </div>
+
+          <!-- Lost Ticket Notice -->
+          <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #856404;">⚠️ Lost Your Ticket?</p>
+            <p style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">If you lose your ticket on event day, please speak to the <strong>Entry Managing Team</strong> at the venue.</p>
+            <p style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">We will need your <strong>registered email address</strong> to verify your ticket in our system:</p>
+            <p style="margin: 0; color: #856404; font-weight: bold; font-size: 14px;">Email: <strong>${email}</strong></p>
+          </div>
+
+          <p style="color: #666; font-size: 12px; margin-top: 30px; text-align: center;">
+            See you at the festival! 🎉
           </p>
         </div>
       </div>
@@ -285,7 +314,8 @@ export async function sendAttendeeOtpEmail(
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
         <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0;">🎟️ Banglafest</h1>
+          <img src="${process.env.FRONTEND_URL}/banglafest%20logo.png" alt="Banglafest Logo" style="max-width: 100px; height: auto; margin-bottom: 15px;">
+          <h1 style="margin: 0;">Banglafest</h1>
           <p style="margin: 8px 0 0; opacity: 0.8;">Ticket Purchase Verification</p>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
@@ -302,49 +332,4 @@ export async function sendAttendeeOtpEmail(
   });
 }
 
-// ─── Send Staff Welcome Email ─────────────────────────────────────────────────
-export async function sendStaffWelcomeEmail(
-  email: string,
-  name: string,
-  role: string,
-  tempPassword: string
-): Promise<void> {
-  const roleLabel = role === 'SALES_EXECUTIVE' ? 'Sales Executive' : 'Scanner';
-  const loginUrl = `${process.env.FRONTEND_URL}/login`;
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: email,
-    subject: `You've been added to Banglafest as a ${roleLabel}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
-        <div style="background: #1a1a2e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0;">🎟️ Banglafest</h1>
-          <p style="margin: 8px 0 0; opacity: 0.8;">Staff Account Created</p>
-        </div>
-        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
-          <h2 style="color: #1a1a2e;">Welcome, ${name}!</h2>
-          <p>An admin has created a <strong>${roleLabel}</strong> account for you on Banglafest.</p>
-          <p>Here are your login credentials:</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-            <tr style="border-bottom: 1px solid #ddd;">
-              <td style="padding: 10px 0; color: #666;">Email</td>
-              <td style="padding: 10px 0; font-weight: bold;">${email}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0; color: #666;">Password</td>
-              <td style="padding: 10px 0; font-weight: bold; color: #f26522;">${tempPassword}</td>
-            </tr>
-          </table>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${loginUrl}"
-               style="background: #f26522; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold;">
-              Log In Now
-            </a>
-          </div>
-          <p style="color: #666; font-size: 12px;">For security, please change your password after your first login.</p>
-        </div>
-      </div>
-    `,
-  });
-}

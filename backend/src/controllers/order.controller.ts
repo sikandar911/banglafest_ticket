@@ -190,9 +190,15 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
       order.user.name,
       tickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
       {
+        orderId: order.id,
         eventTitle: order.ticketTier.event.title,
         tierName: order.ticketTier.name,
         eventDate: order.ticketTier.event.startTime,
+        eventStartTime: order.ticketTier.event.startTime,
+        eventVenue: order.ticketTier.event.location ?? 'TBD',
+        quantity: order.quantity,
+        unitPrice: Number(order.ticketTier.price),
+        totalAmount: Number(order.totalAmount),
       }
     );
 
@@ -292,9 +298,15 @@ export async function setAttendeeNames(req: AuthRequest, res: Response, next: Ne
           firstTicket.user.name,
           tickets.map((t, i) => ({ ticketId: t.id, pdfBuffer: pdfBuffers[i] })),
           {
+            orderId: order.id,
             eventTitle: firstTicket.ticketTier.event.title,
             tierName: firstTicket.ticketTier.name,
             eventDate: firstTicket.ticketTier.event.startTime,
+            eventStartTime: firstTicket.ticketTier.event.startTime,
+            eventVenue: firstTicket.ticketTier.event.location ?? 'TBD',
+            quantity: tickets.length,
+            unitPrice: Number(firstTicket.ticketTier.price),
+            totalAmount: Number(order.totalAmount),
           }
         ).catch((err) => console.error('[setAttendeeNames] Failed to send ticket email:', err));
       }

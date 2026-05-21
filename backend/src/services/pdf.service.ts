@@ -365,7 +365,7 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
   ${specialLine2 ? `<text x="222" y="218" fill="#1a1a1a" font-size="10" font-family="Arial">${xmlEscape(specialLine2)}</text>` : ''}
 
   <line x1="222" y1="232" x2="391" y2="232" stroke="${BRAND_ORANGE}" stroke-width="1"/>
-  <text x="222" y="248" fill="#666666" font-size="7" font-family="Arial">Terms &amp; Conditions: banglafest.co.uk/terms</text>
+  <text x="222" y="248" fill="#666666" font-size="7" font-family="Arial">Terms &amp; Conditions: ticket.banglafest.co.uk/terms</text>
 
   <rect x="419" y="7" width="155" height="155" fill="none" stroke="${BRAND_ORANGE}" stroke-width="1"/>
   <image href="${qrDataUri}" x="424" y="12" width="145" height="145"/>

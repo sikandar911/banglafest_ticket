@@ -6,7 +6,6 @@ import prisma from '../lib/prisma';
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
-  sendWelcomeEmail,
   sendPasswordChangedEmail,
 } from '../services/email.service';
 
@@ -96,8 +95,6 @@ export async function verifyEmail(req: Request, res: Response, next: NextFunctio
       where: { email },
       data: { isVerified: true, otpCode: null, otpExpiresAt: null, refreshToken: hashedRefresh },
     });
-
-    await sendWelcomeEmail(user.email, user.name);
 
     res.json({
       message: 'Email verified successfully.',

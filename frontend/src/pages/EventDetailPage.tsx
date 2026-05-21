@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle, User } from "lucide-react";
+import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle, User, Check } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { eventsApi } from "../api/events";
@@ -28,6 +28,7 @@ export function EventDetailPage() {
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Attendee name step
   const [pendingCheckout, setPendingCheckout] = useState<{
@@ -84,9 +85,10 @@ export function EventDetailPage() {
       // Single-tier selection only: clear other tiers when selecting a new one
       setSelectedTiers({ [tierId]: newQty });
     }
-    // Clear applied promo when tier changes
+    // Clear applied promo and terms when tier changes
     setAppliedPromo(null);
     setPromoInput('');
+    setTermsAccepted(false);
   };
 
   const handleApplyPromo = async () => {
@@ -459,17 +461,49 @@ export function EventDetailPage() {
                   <span className="text-2xl font-bold text-primary-400">£{finalPrice.toFixed(2)}</span>
                 </div>
 
+                {/* Terms & Conditions Checkbox */}
+                <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="w-5 h-5 mt-0.5 rounded border-gray-600 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-300 flex-1">
+                      I agree to the{' '}
+                      <a
+                        href="/terms-and-conditions"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-400 hover:text-primary-300 underline font-medium"
+                      >
+                        Terms & Conditions
+                      </a>
+                      . I understand that{' '}
+                      <span className="font-semibold text-white">tickets are non-refundable</span>, and my
+                      personal data will be kept secure and confidential.
+                    </span>
+                  </label>
+                </div>
+
                 <button
-                  className="w-full btn-primary py-3 font-semibold disabled:opacity-50"
+                  className="w-full btn-primary py-3 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
                   onClick={handleCheckout}
-                  disabled={isCheckingOut}
+                  disabled={isCheckingOut || !termsAccepted}
                 >
+                  {termsAccepted && <Check className="w-4 h-4" />}
                   {isCheckingOut 
                     ? "Processing..." 
                     : isAuthenticated
                     ? "Proceed to Payment"
                     : "Register to Buy Tickets"}
                 </button>
+                {!termsAccepted && totalTickets > 0 && (
+                  <p className="text-xs text-gray-400 text-center mt-2">
+                    Please accept the Terms & Conditions to continue
+                  </p>
+                )}
               </>
             ) : (
               <div className="space-y-3">
