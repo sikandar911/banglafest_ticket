@@ -119,7 +119,7 @@ wait_for_db() {
 run_migrations() {
     log_info "Running Prisma migrations..."
     
-    if docker-compose exec -T backend sh -c "cd /app && npx prisma migrate deploy --skip-generate"; then
+    if docker-compose exec -T backend sh -c "cd /app && npx prisma migrate deploy"; then
         log_success "Migrations completed successfully"
     else
         local exit_code=$?
