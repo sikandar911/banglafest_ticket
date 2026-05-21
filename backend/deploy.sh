@@ -133,7 +133,7 @@ wait_for_backend() {
     
     local count=0
     while [ $count -lt $MAX_RETRIES ]; do
-        if docker-compose exec -T backend curl -f http://localhost:5000 > /dev/null 2>&1; then
+        if docker-compose exec -T backend curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
             log_success "Backend is healthy"
             return 0
         fi
