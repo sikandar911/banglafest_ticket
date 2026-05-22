@@ -9,6 +9,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json tsconfig.node.json ./
 
+# Copy environment file for production build
+COPY .env.production .env
+
 # Install dependencies
 RUN npm ci
 
