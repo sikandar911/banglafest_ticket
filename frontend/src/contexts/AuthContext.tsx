@@ -37,8 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       setUser(data.user);
-    } finally {
+    } catch (error) {
       setIsLoading(false);
+      throw error; // Re-throw so the component can handle it
     }
   }, []);
 

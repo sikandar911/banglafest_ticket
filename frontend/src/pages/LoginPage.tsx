@@ -23,12 +23,15 @@ export function LoginPage() {
       navigate(from, { replace: true });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
-      setError(error?.response?.data?.error || 'Login failed');
+      const errorMsg = error?.response?.data?.error || 'Login failed';
+      setError(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
-  const handlePasswordChange = () => {
-    setError(''); // Clear error when user starts typing password
+  const handleFieldChange = (field: 'email' | 'password', value: string) => {
+    setForm({ ...form, [field]: value });
+    setError(''); // Clear error as soon as user modifies field
   };
 
   return (
@@ -43,16 +46,23 @@ export function LoginPage() {
         </div>
 
         <div className="card">
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <span className="text-red-400 text-sm">{error}</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label">Email</label>
               <input
                 type="email"
-                className="input"
+                className={`input ${error ? 'border-red-500/50' : ''}`}
                 placeholder="john@example.com"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => handleFieldChange('email', e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div>
@@ -64,21 +74,13 @@ export function LoginPage() {
               </div>
               <input
                 type="password"
-                className={`input ${error ? 'border-red-500' : ''}`}
+                className={`input ${error ? 'border-red-500/50' : ''}`}
                 placeholder="••••••••"
                 value={form.password}
-                onChange={(e) => {
-                  setForm({ ...form, password: e.target.value });
-                  handlePasswordChange();
-                }}
+                onChange={(e) => handleFieldChange('password', e.target.value)}
                 required
+                disabled={isLoading}
               />
-              {error && (
-                <div className="flex items-center gap-2 mt-2 text-red-400 text-sm">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>{error}</span>
-                </div>
-              )}
             </div>
             <button type="submit" className="btn-primary w-full" disabled={isLoading}>
               {isLoading ? <Spinner className="w-4 h-4" /> : 'Sign In'}

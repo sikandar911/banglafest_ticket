@@ -32,9 +32,13 @@ api.interceptors.response.use(
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       const refreshToken = localStorage.getItem('refreshToken');
+      // Don't redirect if this is a login request (let the component handle the error)
+      const isLoginRequest = original.url?.includes('/api/auth/login');
       if (!refreshToken) {
-        localStorage.clear();
-        window.location.href = '/login';
+        if (!isLoginRequest) {
+          localStorage.clear();
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
