@@ -54,16 +54,28 @@ function fmtIssued(d: Date): string {
 
 function resolveLogoPath(): string | null {
   const candidates = [
+    // Dev mode: src/assets/logo.png (highest priority - original tiger logo)
     path.join(__dirname, '../assets/logo.png'),
+    // Prod mode: dist/assets/logo.png (copied during build)
     path.join(process.cwd(), 'dist/assets/logo.png'),
+    // Fallback: other locations
     path.join(process.cwd(), 'src/assets/logo.png'),
     path.join(process.cwd(), 'assets/logo.png'),
+    path.join(__dirname, '../../src/assets/logo.png'),
   ];
 
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
+    try {
+      if (fs.existsSync(candidate)) {
+        console.log(`[PDF Service] Logo found at: ${candidate}`);
+        return candidate;
+      }
+    } catch (err) {
+      // Continue to next candidate
+    }
   }
 
+  console.warn(`[PDF Service] Logo not found. Checked:`, candidates);
   return null;
 }
 
@@ -340,43 +352,43 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
 
   ${logoDataUri
     ? `<image href="${logoDataUri}" x="0" y="0" width="215" height="${PAGE_HEIGHT}" preserveAspectRatio="xMidYMid meet"/>`
-    : `<rect x="0" y="0" width="215" height="${PAGE_HEIGHT}" fill="#f6f6f6"/><text x="107" y="128" fill="#222" text-anchor="middle" font-size="22" font-family="Arial" font-weight="700">BANGLAFEST</text>`}
+    : `<rect x="0" y="0" width="215" height="${PAGE_HEIGHT}" fill="#f6f6f6"/><text x="107" y="128" fill="#222222" text-anchor="middle" font-size="22" font-weight="700">BANGLAFEST</text>`}
 
   <line x1="395" y1="16" x2="395" y2="239" stroke="#cccccc" stroke-width="0.8"/>
 
   <rect x="222" y="15" width="3.2" height="32" fill="${BRAND_ORANGE}"/>
-  <text x="232" y="30" fill="#000" font-size="13" font-family="Arial" font-weight="700">OFFICIAL ENTRY PASS</text>
+  <text x="232" y="30" fill="#000000" font-size="13" font-weight="700" font-family="Arial, sans-serif">OFFICIAL ENTRY PASS</text>
 
-  <text x="222" y="58" fill="${BRAND_ORANGE}" font-size="9.5" font-family="Arial" font-weight="700">DATE:</text>
-  <text x="274" y="58" fill="#000" font-size="10.5" font-family="Georgia">${xmlEscape(fmtDate(data.eventDate))}</text>
+  <text x="222" y="58" fill="${BRAND_ORANGE}" font-size="9.5" font-weight="700" font-family="Arial, sans-serif">DATE:</text>
+  <text x="274" y="58" fill="#000000" font-size="10.5" font-weight="700" font-family="Arial, sans-serif">${xmlEscape(fmtDate(data.eventDate))}</text>
 
-  <text x="222" y="74" fill="${BRAND_ORANGE}" font-size="9.5" font-family="Arial" font-weight="700">VENUE:</text>
-  <text x="274" y="74" fill="#000" font-size="9.5" font-family="Arial" font-weight="700">${xmlEscape(truncateText(venueName, 24))}</text>
-  <text x="274" y="89" fill="#000" font-size="9" font-family="Arial" font-weight="700">${xmlEscape(truncateText(venueCity, 30))}</text>
+  <text x="222" y="74" fill="${BRAND_ORANGE}" font-size="9.5" font-weight="700" font-family="Arial, sans-serif">VENUE:</text>
+  <text x="274" y="74" fill="#000000" font-size="9.5" font-weight="700" font-family="Arial, sans-serif">${xmlEscape(truncateText(venueName, 24))}</text>
+  <text x="274" y="89" fill="#000000" font-size="9" font-weight="700" font-family="Arial, sans-serif">${xmlEscape(truncateText(venueCity, 30))}</text>
 
-  <text x="222" y="106" fill="${BRAND_ORANGE}" font-size="14" font-family="Arial" font-weight="700">PERFORMERS:</text>
+  <text x="222" y="106" fill="${BRAND_ORANGE}" font-size="14" font-weight="700" font-family="Arial, sans-serif">PERFORMERS:</text>
 
   ${performerLines.map((line, index) => {
     const y = 120 + index * 14;
-    return `<circle cx="227" cy="${y - 4}" r="2.5" fill="${BRAND_ORANGE}"/><text x="236" y="${y}" fill="#1a1a1a" font-size="10" font-family="Arial">${xmlEscape(line)}</text>`;
+    return `<circle cx="227" cy="${y - 4}" r="2.5" fill="${BRAND_ORANGE}"/><text x="236" y="${y}" fill="#1a1a1a" font-size="10" font-family="Arial, sans-serif">${xmlEscape(line)}</text>`;
   }).join('')}
 
-  ${specialLine1 ? `<text x="222" y="205" fill="#1a1a1a" font-size="10" font-family="Arial">${xmlEscape(specialLine1)}</text>` : ''}
-  ${specialLine2 ? `<text x="222" y="218" fill="#1a1a1a" font-size="10" font-family="Arial">${xmlEscape(specialLine2)}</text>` : ''}
+  ${specialLine1 ? `<text x="222" y="205" fill="#1a1a1a" font-size="10" font-family="Arial, sans-serif">${xmlEscape(specialLine1)}</text>` : ''}
+  ${specialLine2 ? `<text x="222" y="218" fill="#1a1a1a" font-size="10" font-family="Arial, sans-serif">${xmlEscape(specialLine2)}</text>` : ''}
 
   <line x1="222" y1="232" x2="391" y2="232" stroke="${BRAND_ORANGE}" stroke-width="1"/>
-  <text x="222" y="248" fill="#666666" font-size="7" font-family="Arial">Terms &amp; Conditions: banglafest.co.uk/terms</text>
+  <text x="222" y="248" fill="#666666" font-size="7" font-family="Arial, sans-serif">Terms &amp; Conditions: banglafest.co.uk/terms</text>
 
   <rect x="419" y="7" width="155" height="155" fill="none" stroke="${BRAND_ORANGE}" stroke-width="1"/>
   <image href="${qrDataUri}" x="424" y="12" width="145" height="145"/>
 
-  <text x="496" y="176" fill="${BRAND_ORANGE}" font-size="7.3" text-anchor="middle" font-family="Arial" font-weight="700">SCAN AT ENTRANCE</text>
-  <text x="496" y="191" fill="#000" font-size="10" text-anchor="middle" font-family="Arial" font-weight="700">ISSUED ${xmlEscape(fmtIssued(data.createdAt))}</text>
-  <text x="496" y="208" fill="#1a1a1a" font-size="8.5" text-anchor="middle" font-family="Arial">FAN: ${xmlEscape(truncateText(data.attendeeName || data.userName, 22))}</text>
-  <text x="496" y="220" fill="#1a1a1a" font-size="8" text-anchor="middle" font-family="Arial">${xmlEscape(truncateText(data.tierName, 20))}</text>
+  <text x="496" y="176" fill="${BRAND_ORANGE}" font-size="7.3" text-anchor="middle" font-weight="700" font-family="Arial, sans-serif">SCAN AT ENTRANCE</text>
+  <text x="496" y="191" fill="#000000" font-size="10" text-anchor="middle" font-weight="700" font-family="Arial, sans-serif">ISSUED ${xmlEscape(fmtIssued(data.createdAt))}</text>
+  <text x="496" y="208" fill="#1a1a1a" font-size="8.5" text-anchor="middle" font-family="Arial, sans-serif">FAN: ${xmlEscape(truncateText(data.attendeeName || data.userName, 22))}</text>
+  <text x="496" y="220" fill="#1a1a1a" font-size="8" text-anchor="middle" font-family="Arial, sans-serif">${xmlEscape(truncateText(data.tierName, 20))}</text>
 
   <g transform="translate(585 84.5) rotate(-90)">
-    <text x="0" y="0" fill="${BRAND_ORANGE}" font-size="5.5" text-anchor="middle" font-family="Arial">${xmlEscape(data.ticketId.toUpperCase())}</text>
+    <text x="0" y="0" fill="${BRAND_ORANGE}" font-size="5.5" text-anchor="middle" font-family="Arial, sans-serif">${xmlEscape(data.ticketId.toUpperCase())}</text>
   </g>
 </svg>`;
 
@@ -385,7 +397,17 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
       mode: 'width',
       value: PAGE_WIDTH * 2,
     },
+    font: {
+      loadSystemFonts: true,
+    },
   });
 
-  return resvg.render().asPng();
+  try {
+    const image = resvg.render();
+    return image.asPng();
+  } catch (err) {
+    console.error('[PDF Service] Error rendering PNG ticket:', err);
+    console.error('[PDF Service] SVG length:', svg.length);
+    throw err;
+  }
 }

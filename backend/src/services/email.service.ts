@@ -150,7 +150,7 @@ export async function sendTicketConfirmationEmail(
   }
 ): Promise<void> {
   const attachments = tickets.map((t, i) => ({
-    filename: `banglafest-ticket-${i + 1}.pdf`,
+    filename: `banglafest-ticket-${t.ticketId.slice(0, 8)}-${i + 1}.pdf`,
     content: t.pdfBuffer,
     contentType: 'application/pdf',
   }));

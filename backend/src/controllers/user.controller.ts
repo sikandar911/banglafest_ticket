@@ -171,7 +171,7 @@ export async function downloadTicketPdf(req: Request, res: Response, next: NextF
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="banglafest-ticket-${ticket.id.slice(0, 8)}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="banglafest-ticket-${ticket.id.slice(0, 8)}-${new Date(ticket.createdAt).toISOString().slice(0, 10)}.pdf"`);
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Cache-Control', 'no-store');
     res.send(pdfBuffer);
@@ -230,9 +230,10 @@ export async function downloadTicketPng(req: Request, res: Response, next: NextF
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'ticket';
+    const timestamp = new Date(ticket.createdAt).toISOString().slice(0, 10);
 
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `attachment; filename="banglafest-${safeTier}-${ticket.id.slice(0, 8)}.png"`);
+    res.setHeader('Content-Disposition', `attachment; filename="banglafest-${safeTier}-${ticket.id.slice(0, 8)}-${timestamp}.png"`);
     res.setHeader('Content-Length', pngBuffer.length);
     res.setHeader('Cache-Control', 'no-store');
     res.send(pngBuffer);
@@ -285,7 +286,7 @@ export async function downloadAllTicketsPdf(req: Request, res: Response, next: N
     );
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="banglafest-all-tickets.pdf"');
+    res.setHeader('Content-Disposition', `attachment; filename="banglafest-all-tickets-${new Date().toISOString().slice(0, 10)}.pdf"`);
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Cache-Control', 'no-store');
     res.send(pdfBuffer);

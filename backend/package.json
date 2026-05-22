@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
+    "build": "tsc && node -e \"const{existsSync,mkdirSync,copyFileSync}=require('fs');const p=require('path');const d='dist/assets';if(!existsSync(d))mkdirSync(d,{recursive:true});const s=p.join('src','assets','logo.png');if(existsSync(s)){copyFileSync(s,p.join(d,'logo.png'));console.log('Logo copied to dist/assets/logo.png');}else{console.warn('Logo not found at src/assets/logo.png');}\"",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
