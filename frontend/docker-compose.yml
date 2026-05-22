@@ -10,7 +10,7 @@ services:
     environment:
       VITE_API_URL: ${VITE_API_URL:-https://api.banglafest.co.uk}
     ports:
-      - "localhost:${FRONTEND_PORT:-3001}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-3001}:80"
     networks:
       - banglafest_frontend
     healthcheck:

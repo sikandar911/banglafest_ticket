@@ -48,9 +48,9 @@ server {
     client_max_body_size 50M;
     proxy_buffering off;
 
-    # Root location - proxy to Docker backend on localhost:5000
+    # Root location - proxy to Docker backend on 127.0.0.1:5000
     location / {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://127.0.0.1:5000;
         proxy_http_version 1.1;
         
         # Essential headers for proxying
@@ -72,7 +72,7 @@ server {
 
     # Health check endpoint
     location /api/health {
-        proxy_pass http://localhost:5000/api/health;
+        proxy_pass http://127.0.0.1:5000/api/health;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         access_log off;

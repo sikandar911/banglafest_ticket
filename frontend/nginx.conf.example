@@ -47,9 +47,9 @@ server {
     access_log /var/log/nginx/ticket.banglafest.co.uk.access.log;
     error_log /var/log/nginx/ticket.banglafest.co.uk.error.log;
 
-    # Root location - proxy to Docker frontend on localhost:3001
+    # Root location - proxy to Docker frontend on 127.0.0.1:3001
     location / {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         
         # Essential headers for proxying
