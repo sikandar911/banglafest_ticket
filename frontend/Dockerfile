@@ -5,11 +5,9 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and environment
 COPY package*.json ./
 COPY tsconfig.json tsconfig.node.json ./
-
-# Copy environment file for production build
 COPY .env.production .env
 
 # Install dependencies
@@ -20,8 +18,8 @@ COPY src ./src
 COPY public ./public
 COPY index.html vite.config.ts postcss.config.js tailwind.config.js ./
 
-# Build the application
-RUN npm run build
+# Build with environment variables explicitly set
+RUN VITE_API_URL=https://api.banglafest.co.uk npm run build
 
 # Stage 2: Runtime (Nginx)
 FROM nginx:alpine
