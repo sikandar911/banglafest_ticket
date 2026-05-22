@@ -23,9 +23,25 @@ const PORT = process.env.PORT || 5000;
 
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet());
+
+// CORS configuration with multiple allowed origins
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'https://ticket.banglafest.co.uk',
+  'https://ticket.banglafest.co.uk',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS not allowed'));
+      }
+    },
     credentials: true,
   })
 );
