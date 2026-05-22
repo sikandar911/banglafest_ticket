@@ -24,7 +24,7 @@ services:
       EMAIL_FROM: ${EMAIL_FROM}
       OTP_EXPIRES_IN_MINUTES: ${OTP_EXPIRES_IN_MINUTES:-15}
     ports:
-      - "127.0.0.1:${BACKEND_PORT:-5000}:5000"
+      - "localhost:${BACKEND_PORT:-5000}:5000"
     networks:
       - banglafest_backend
     healthcheck:
