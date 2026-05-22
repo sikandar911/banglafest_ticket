@@ -8,9 +8,9 @@ services:
       dockerfile: Dockerfile
     container_name: banglafest_frontend
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://api.banglafest.co.uk}
+      VITE_API_URL: ${VITE_API_URL:-https://api.banglafest.co.uk}
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-3001}:80"
     networks:
       - banglafest_frontend
     healthcheck:
