@@ -49,7 +49,7 @@ const stripeAppearance = {
     },
     '.Tab--selected': {
       border: '1px solid #e94560',
-      backgroundColor: '#1f2937',
+      backgroundColor: '#e94560',
     },
   },
 };

@@ -17,7 +17,7 @@ export function TermsAndConditionsPage() {
           </button>
           <div className="flex items-center gap-3">
             <img 
-              src="/banglafest logo.png" 
+              src="/banglafest-flat-logo.png" 
               alt="Banglafest Logo" 
               className="w-8 h-8 object-contain"
             />

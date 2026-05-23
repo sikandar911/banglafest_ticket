@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { getMyTickets, getMyOrders, downloadTicketPdf, downloadTicketPng, downloadAllTicketsPdf, getProfile } from '../controllers/user.controller';
+import { getMyTickets, getMyOrders, downloadTicketPdf, downloadAllTicketsPdf, getProfile } from '../controllers/user.controller';
 
 const router = Router();
 
@@ -8,7 +8,6 @@ const router = Router();
 // /print-all must be before /:ticketId/pdf to match correctly
 router.get('/me/tickets/print-all', downloadAllTicketsPdf);
 router.get('/me/tickets/:ticketId/pdf', downloadTicketPdf);
-router.get('/me/tickets/:ticketId/png', downloadTicketPng);
 
 router.use(authenticate);
 

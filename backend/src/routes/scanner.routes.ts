@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
 import { authorize } from '../middleware/authorize';
-import { scanTicket, searchTickets } from '../controllers/scanner.controller';
+import { scanTicket, searchTickets, toggleInStatus } from '../controllers/scanner.controller';
 
 const router = Router();
 
@@ -217,5 +217,51 @@ router.post('/scan', scanTicket);
  *                   type: string
  */
 router.get('/search', searchTickets);
+
+/**
+ * @swagger
+ * /api/scanner/toggle-in-status:
+ *   post:
+ *     summary: Toggle ticket in/out status
+ *     description: Toggle the in/out status of a checked-in ticket. Can be used to mark ticket holders as checked out.
+ *     tags: [Scanner]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - ticketId
+ *             properties:
+ *               ticketId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Ticket ID
+ *     responses:
+ *       200:
+ *         description: In/out status toggled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 inStatus:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Ticket checked out"
+ *       400:
+ *         description: Invalid request or ticket not checked in
+ *       404:
+ *         description: Ticket not found
+ */
+router.post('/toggle-in-status', toggleInStatus);
 
 export default router;

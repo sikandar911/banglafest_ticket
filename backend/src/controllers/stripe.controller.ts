@@ -249,6 +249,8 @@ async function fulfillOrder(
       quantity: order!.quantity,
       unitPrice: Number(order!.ticketTier.price),
       totalAmount: Number(order!.totalAmount),
+      discountAmount: order!.discountAmount ? Number(order!.discountAmount) : undefined,
+      promoCode: order!.promoCode?.code,
     }
   );
 }

@@ -79,8 +79,34 @@ function resolveLogoPath(): string | null {
   return null;
 }
 
+function resolveAmbrosianLogoPath(): string | null {
+  const candidates = [
+    // Dev mode: public/ambrosian wide.png
+    path.join(__dirname, '../../public/ambrosian wide.png'),
+    // Prod mode: dist/../public/ambrosian wide.png
+    path.join(process.cwd(), 'public/ambrosian wide.png'),
+    // Fallback locations
+    path.join(process.cwd(), 'src/../public/ambrosian wide.png'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        console.log(`[PDF Service] Ambrosian logo found at: ${candidate}`);
+        return candidate;
+      }
+    } catch (err) {
+      // Continue to next candidate
+    }
+  }
+
+  console.warn(`[PDF Service] Ambrosian logo not found.`);
+  return null;
+}
+
 // Resolve at module load with fallback across dev/prod layouts.
 const LOGO_PATH = resolveLogoPath();
+const AMBROSIAN_LOGO_PATH = resolveAmbrosianLogoPath();
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 255;
@@ -124,17 +150,30 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
     .stroke()
     .undash();
 
-  const LW = 215;
+  // Ambrosian Logo (enlarged, top left)
+  if (AMBROSIAN_LOGO_PATH) {
+    doc.image(AMBROSIAN_LOGO_PATH, 6, offsetY + 2, {
+      fit: [180, 66],
+    });
+  }
+
+  // PRESENTS text (placed directly under Ambrosian logo - no gap)
+  doc.fontSize(10).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
+    .text('PRESENTS', 6, offsetY + 48, { width: 180, align: 'center' });
+
+  // Banglafest Logo (shrunken to fit under Ambrosian block) - reduced gap
+  const LW = 180;
+  const logoY = offsetY + 40; // compressed spacing between logos
   if (LOGO_PATH) {
-    doc.image(LOGO_PATH, 0, offsetY, {
-      fit: [LW, PAGE_HEIGHT],
+    doc.image(LOGO_PATH, 0, logoY, {
+      fit: [LW, PAGE_HEIGHT - logoY + offsetY],
       align: 'center',
       valign: 'center',
     });
   } else {
-    doc.rect(0, offsetY, LW, PAGE_HEIGHT).fill('#f6f6f6');
+    doc.rect(0, logoY, LW, PAGE_HEIGHT - logoY + offsetY).fill('#f6f6f6');
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#222222')
-      .text('BANGLAFEST', 24, offsetY + PAGE_HEIGHT / 2 - 12, { width: LW - 48, align: 'center' });
+      .text('BANGLAFEST', 24, logoY + (PAGE_HEIGHT - logoY + offsetY) / 2 - 12, { width: LW - 48, align: 'center' });
   }
 
   const DIV_X = 395;
@@ -146,74 +185,95 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
   const MX = 222;
   const MW = DIV_X - MX - 3;
   const LBL_W = 52;
-  let ry = offsetY + 14;
+  let ry = offsetY + 24; // Add space before OFFICIAL ENTRY PASS
 
   doc.rect(MX, ry - 3, 3.2, 22).fill(BRAND_ORANGE);
   doc.fontSize(13).font('Helvetica-Bold').fillColor(BLACK)
     .text('OFFICIAL ENTRY PASS', MX + 10, ry, { width: MW - 10 });
-  ry += 30;
+  ry += 28; // Increased for better spacing
 
+  // DATE row - centered value
   doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
-    .text('DATE:', MX, ry, { width: LBL_W, lineBreak: false });
+    .text('DATE:', MX, ry, { width: 50, lineBreak: false });
   doc.fontSize(10.2).font('Helvetica-Bold').fillColor(BLACK)
-    .text(fmtDate(data.eventDate), MX + LBL_W, ry, { width: MW - LBL_W });
-  ry += 16;
+    .text(fmtDate(data.eventDate), MX + 50, ry, { width: MW - 50, align: 'center' });
+  ry += 13; // Increased from 12
 
+  // VENUE row - centered value
   doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
-    .text('VENUE:', MX, ry, { width: LBL_W, lineBreak: false });
+    .text('VENUE:', MX, ry, { width: 50, lineBreak: false });
 
   const venue = data.location || 'To Be Announced';
   const commaIdx = venue.indexOf(',');
   const venueName = commaIdx > -1 ? venue.slice(0, commaIdx).trim() : venue;
   const venueCity = commaIdx > -1 ? venue.slice(commaIdx + 1).trim() : '';
-  const valX = MX + LBL_W;
-  const valW = MW - LBL_W;
 
   doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BLACK)
-    .text(venueName, valX, ry, { width: valW, lineBreak: false });
+    .text(venueName, MX + 50, ry, { width: MW - 50, align: 'center' });
   if (venueCity) {
     doc.fontSize(9.5).font('Helvetica-Bold').fillColor(BLACK)
-      .text(venueCity, valX, ry + 13, { width: valW, lineBreak: false });
-    ry += 28;
+      .text(venueCity, MX + 50, ry + 10, { width: MW - 50, align: 'center' });
+    ry += 24; // Increased from 22
   } else {
-    ry += 16;
+    ry += 13; // Increased from 12
   }
 
-  ry += 22;
+  ry += 10; // Increased from 8
 
   const performers = data.performers && data.performers.length > 0 ? data.performers : null;
-  if (performers && ry < offsetY + PAGE_HEIGHT - 55) {
-    doc.fontSize(14).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
+  if (performers && ry < offsetY + PAGE_HEIGHT - 25) {
+    doc.fontSize(12).font('Helvetica-Bold').fillColor(BRAND_ORANGE)
       .text('PERFORMERS:', MX, ry, { width: MW });
-    ry += 18;
+    ry += 13; // Reduced from 18
 
-    for (const performer of performers.slice(0, 6)) {
-      if (ry >= offsetY + PAGE_HEIGHT - 42) break;
-      doc.circle(MX + 5, ry + 5.5, 2.5).fillOpacity(1).fill(BRAND_ORANGE);
-      doc.fontSize(10).font('Helvetica').fillColor('#1a1a1a')
-        .text(performer.ticketDisplayName, MX + 14, ry, { width: MW - 14 });
-      ry += 15;
+    for (const performer of performers) {
+      if (ry >= offsetY + PAGE_HEIGHT - 24) break;
+      doc.circle(MX + 5, ry + 3.5, 2.5).fillOpacity(1).fill(BRAND_ORANGE);
+      doc.fontSize(8.5).font('Helvetica').fillColor('#1a1a1a')
+        .text(truncateText(performer.ticketDisplayName, 30), MX + 14, ry, { width: MW - 14 });
+      ry += 11; // Reduced from 15
     }
-    ry += 6;
+    ry += 2; // Reduced from 6
   }
+
+  // Add more spacing before special additions
+  ry += 12;
 
   const specials = data.specialAdditions && data.specialAdditions.length > 0 ? data.specialAdditions : null;
-  if (specials && ry < offsetY + PAGE_HEIGHT - 40) {
-    for (const special of specials.slice(0, 3)) {
-      if (ry >= offsetY + PAGE_HEIGHT - 38) break;
-      doc.fontSize(10).font('Helvetica').fillColor('#1a1a1a')
-        .text(special.ticketDisplayText, MX, ry, { width: MW });
-      doc.fontSize(9.5).font('Helvetica');
-      const specialHeight = doc.heightOfString(special.ticketDisplayText, { width: MW });
-      ry += Math.max(14, specialHeight + 2);
+  if (specials && ry < offsetY + PAGE_HEIGHT - 25) {
+    for (const special of specials) {
+      if (ry >= offsetY + PAGE_HEIGHT - 22) break;
+      
+      // Split special addition text into 2 lines without truncation
+      const fullText = special.ticketDisplayText;
+      const maxCharsPerLine = 42;
+      let line1 = fullText;
+      let line2 = '';
+      
+      if (fullText.length > maxCharsPerLine) {
+        const mid = fullText.lastIndexOf(' ', maxCharsPerLine);
+        const splitIdx = mid > 20 ? mid : maxCharsPerLine;
+        line1 = fullText.slice(0, splitIdx).trim();
+        line2 = fullText.slice(splitIdx).trim();
+      }
+      
+      doc.fontSize(8.5).font('Helvetica').fillColor('#1a1a1a')
+        .text(line1, MX, ry, { width: MW });
+      if (line2) {
+        doc.fontSize(8.5).font('Helvetica').fillColor('#1a1a1a')
+          .text(line2, MX, ry + 11, { width: MW });
+        ry += 22;
+      } else {
+        ry += 11;
+      }
     }
   }
 
-  doc.moveTo(MX, offsetY + PAGE_HEIGHT - 23).lineTo(MX + MW, offsetY + PAGE_HEIGHT - 23)
-    .strokeColor(BRAND_ORANGE).lineWidth(1).stroke();
+  doc.moveTo(MX, offsetY + PAGE_HEIGHT - 18).lineTo(MX + MW, offsetY + PAGE_HEIGHT - 18)
+    .strokeColor(BRAND_ORANGE).lineWidth(0.8).stroke();
 
-  doc.fontSize(7).font('Helvetica').fillColor(GRAY)
-    .text('Terms & Conditions: banglafest.co.uk/terms', MX, offsetY + PAGE_HEIGHT - 18, { width: MW });
+  doc.fontSize(6).font('Helvetica').fillColor(GRAY)
+    .text('Terms & Conditions: banglafest.co.uk/terms', MX, offsetY + PAGE_HEIGHT - 14, { width: MW });
 
   const RX = DIV_X + 10;
   const UUID_W = 12;
@@ -249,7 +309,7 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
     .font('Helvetica')
     .fillColor(BRAND_ORANGE)
     .rotate(-90, { origin: [uuidX, uuidCenterY] })
-    .text(data.ticketId.toUpperCase(), uuidX - QRS / 2, uuidCenterY - 2, {
+    .text(data.ticketId, uuidX - QRS / 2, uuidCenterY - 2, {
       width: QRS,
       align: 'center',
       lineBreak: false,
@@ -323,82 +383,115 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
     ? `data:image/png;base64,${fs.readFileSync(LOGO_PATH).toString('base64')}`
     : null;
 
+  const ambrosianLogoDataUri = AMBROSIAN_LOGO_PATH
+    ? `data:image/png;base64,${fs.readFileSync(AMBROSIAN_LOGO_PATH).toString('base64')}`
+    : null;
+
   const venue = data.location || 'To Be Announced';
   const venueCommaIndex = venue.indexOf(',');
   const venueName = venueCommaIndex > -1 ? venue.slice(0, venueCommaIndex).trim() : venue;
   const venueCity = venueCommaIndex > -1 ? venue.slice(venueCommaIndex + 1).trim() : '';
 
-  const performerLines = (data.performers ?? []).slice(0, 4).map((p) => truncateText(p.ticketDisplayName, 28));
+  const performerLines = (data.performers ?? []).map((p) => truncateText(p.ticketDisplayName, 30));
   
-  // Handle special additions with 2-line wrapping if needed
+  // Handle special additions with 2-line wrapping without truncation
   let specialLine1 = '';
   let specialLine2 = '';
   if (data.specialAdditions?.[0]?.ticketDisplayText) {
     const fullText = data.specialAdditions[0].ticketDisplayText;
-    if (fullText.length > 45) {
-      const mid = fullText.lastIndexOf(' ', 45);
-      const splitIdx = mid > 30 ? mid : 45;
-      specialLine1 = truncateText(fullText.slice(0, splitIdx), 45);
-      specialLine2 = truncateText(fullText.slice(splitIdx + 1), 45);
+    const maxCharsPerLine = 42;
+    if (fullText.length > maxCharsPerLine) {
+      const mid = fullText.lastIndexOf(' ', maxCharsPerLine);
+      const splitIdx = mid > 20 ? mid : maxCharsPerLine;
+      specialLine1 = fullText.slice(0, splitIdx).trim();
+      specialLine2 = fullText.slice(splitIdx).trim();
     } else {
-      specialLine1 = truncateText(fullText, 45);
+      specialLine1 = fullText;
     }
   }
 
+  // Calculate Banglafest logo Y position to match PDF - compressed spacing
+  const banglafestLogoY = 76;
+
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_WIDTH}" height="${PAGE_HEIGHT}" viewBox="0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}">
+  <defs>
+    <style>
+      text { font-family: 'Arial', 'Helvetica', 'Liberation Sans', 'DejaVu Sans', 'sans-serif'; font-size: inherit; }
+    </style>
+  </defs>
+  
   <rect x="0" y="0" width="${PAGE_WIDTH}" height="${PAGE_HEIGHT}" fill="#ffffff"/>
   <rect x="2" y="2" width="${PAGE_WIDTH - 4}" height="${PAGE_HEIGHT - 4}" rx="8" ry="8" fill="none" stroke="#444444" stroke-width="1.3" stroke-dasharray="7 5"/>
 
+  <!-- Ambrosian Logo at top left -->
+  ${ambrosianLogoDataUri
+    ? `<image href="${ambrosianLogoDataUri}" x="2" y="2" width="180" height="66" preserveAspectRatio="xMinYMin meet"/>`
+    : ''}
+  
+  <!-- Banglafest Logo (shrunk to fit under Ambrosian) -->
   ${logoDataUri
-    ? `<image href="${logoDataUri}" x="0" y="0" width="215" height="${PAGE_HEIGHT}" preserveAspectRatio="xMidYMid meet"/>`
-    : `<rect x="0" y="0" width="215" height="${PAGE_HEIGHT}" fill="#f6f6f6"/><text x="107" y="128" fill="#222222" text-anchor="middle" font-size="22" font-weight="700">BANGLAFEST</text>`}
+    ? `<image href="${logoDataUri}" x="0" y="${banglafestLogoY}" width="180" height="${PAGE_HEIGHT - banglafestLogoY}" preserveAspectRatio="xMidYMid meet"/>`
+    : `<rect x="0" y="${banglafestLogoY}" width="180" height="${PAGE_HEIGHT - banglafestLogoY}" fill="#f6f6f6"/><text x="90" y="165" fill="#222222" text-anchor="middle" font-size="20" font-weight="bold" font-family="Arial, Helvetica, sans-serif">BANGLAFEST</text>`}
 
-  <line x1="395" y1="16" x2="395" y2="239" stroke="#cccccc" stroke-width="0.8"/>
+  <line x1="395" y1="24" x2="395" y2="239" stroke="#cccccc" stroke-width="0.8"/>
 
-  <rect x="222" y="15" width="3.2" height="32" fill="${BRAND_ORANGE}"/>
-  <text x="232" y="30" fill="#000000" font-size="13" font-weight="700" font-family="Arial, sans-serif">OFFICIAL ENTRY PASS</text>
+  <rect x="222" y="24" width="3.2" height="28" fill="${BRAND_ORANGE}"/>
+  
+  <rect x="419" y="24" width="155" height="155" fill="none" stroke="${BRAND_ORANGE}" stroke-width="1"/>
+  <image href="${qrDataUri}" x="424" y="29" width="145" height="145"/>
 
-  <text x="222" y="58" fill="${BRAND_ORANGE}" font-size="9.5" font-weight="700" font-family="Arial, sans-serif">DATE:</text>
-  <text x="274" y="58" fill="#000000" font-size="10.5" font-weight="700" font-family="Arial, sans-serif">${xmlEscape(fmtDate(data.eventDate))}</text>
+  <!-- All text elements drawn last (appear on top with z-index) -->
+  <!-- PRESENTS text (centered under Ambrosian) - appears on top -->
+  <text x="92" y="72" fill="#f26522" font-size="10" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">PRESENTS</text>
 
-  <text x="222" y="74" fill="${BRAND_ORANGE}" font-size="9.5" font-weight="700" font-family="Arial, sans-serif">VENUE:</text>
-  <text x="274" y="74" fill="#000000" font-size="9.5" font-weight="700" font-family="Arial, sans-serif">${xmlEscape(truncateText(venueName, 24))}</text>
-  <text x="274" y="89" fill="#000000" font-size="9" font-weight="700" font-family="Arial, sans-serif">${xmlEscape(truncateText(venueCity, 30))}</text>
+  <text x="232" y="38" fill="#000000" font-size="13" font-weight="bold" font-family="Arial, Helvetica, sans-serif">OFFICIAL ENTRY PASS</text>
 
-  <text x="222" y="106" fill="${BRAND_ORANGE}" font-size="14" font-weight="700" font-family="Arial, sans-serif">PERFORMERS:</text>
+  <text x="222" y="54" fill="${BRAND_ORANGE}" font-size="9.5" font-weight="bold" font-family="Arial, Helvetica, sans-serif">DATE:</text>
+  <text x="297" y="54" fill="#000000" font-size="10" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${xmlEscape(fmtDate(data.eventDate))}</text>
+
+  <text x="222" y="67" fill="${BRAND_ORANGE}" font-size="9.5" font-weight="bold" font-family="Arial, Helvetica, sans-serif">VENUE:</text>
+  <text x="297" y="67" fill="#000000" font-size="9.5" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${xmlEscape(truncateText(venueName, 28))}</text>
+  ${venueCity ? `<text x="297" y="78" fill="#000000" font-size="9.5" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${xmlEscape(truncateText(venueCity, 28))}</text>` : ''}
+
+  <text x="222" y="91" fill="${BRAND_ORANGE}" font-size="12" font-weight="bold" font-family="Arial, Helvetica, sans-serif">PERFORMERS:</text>
 
   ${performerLines.map((line, index) => {
-    const y = 120 + index * 14;
-    return `<circle cx="227" cy="${y - 4}" r="2.5" fill="${BRAND_ORANGE}"/><text x="236" y="${y}" fill="#1a1a1a" font-size="10" font-family="Arial, sans-serif">${xmlEscape(line)}</text>`;
+    const y = 104 + index * 11;
+    return `<circle cx="227" cy="${y - 2}" r="2" fill="${BRAND_ORANGE}"/><text x="235" y="${y}" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif">${xmlEscape(line)}</text>`;
   }).join('')}
 
-  ${specialLine1 ? `<text x="222" y="205" fill="#1a1a1a" font-size="10" font-family="Arial, sans-serif">${xmlEscape(specialLine1)}</text>` : ''}
-  ${specialLine2 ? `<text x="222" y="218" fill="#1a1a1a" font-size="10" font-family="Arial, sans-serif">${xmlEscape(specialLine2)}</text>` : ''}
+  ${specialLine1 ? `<text x="222" y="178" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif">${xmlEscape(specialLine1)}</text>` : ''}
+  ${specialLine2 ? `<text x="222" y="189" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif">${xmlEscape(specialLine2)}</text>` : ''}
 
-  <line x1="222" y1="232" x2="391" y2="232" stroke="${BRAND_ORANGE}" stroke-width="1"/>
-  <text x="222" y="248" fill="#666666" font-size="7" font-family="Arial, sans-serif">Terms &amp; Conditions: banglafest.co.uk/terms</text>
+  <line x1="222" y1="197" x2="391" y2="197" stroke="${BRAND_ORANGE}" stroke-width="0.8"/>
+  <text x="222" y="206" fill="#666666" font-size="6" font-family="Arial, Helvetica, sans-serif">Terms &amp; Conditions: banglafest.co.uk/terms</text>
 
-  <rect x="419" y="7" width="155" height="155" fill="none" stroke="${BRAND_ORANGE}" stroke-width="1"/>
-  <image href="${qrDataUri}" x="424" y="12" width="145" height="145"/>
+  <text x="496" y="188" fill="${BRAND_ORANGE}" font-size="7" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">SCAN AT ENTRANCE</text>
+  <text x="496" y="199" fill="#000000" font-size="10" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">ISSUED ${xmlEscape(fmtIssued(data.createdAt))}</text>
+  <text x="496" y="212" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">FAN: ${xmlEscape(truncateText(data.attendeeName || data.userName, 22))}</text>
+  <text x="496" y="223" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${xmlEscape(truncateText(data.tierName, 20))}</text>
 
-  <text x="496" y="176" fill="${BRAND_ORANGE}" font-size="7.3" text-anchor="middle" font-weight="700" font-family="Arial, sans-serif">SCAN AT ENTRANCE</text>
-  <text x="496" y="191" fill="#000000" font-size="10" text-anchor="middle" font-weight="700" font-family="Arial, sans-serif">ISSUED ${xmlEscape(fmtIssued(data.createdAt))}</text>
-  <text x="496" y="208" fill="#1a1a1a" font-size="8.5" text-anchor="middle" font-family="Arial, sans-serif">FAN: ${xmlEscape(truncateText(data.attendeeName || data.userName, 22))}</text>
-  <text x="496" y="220" fill="#1a1a1a" font-size="8" text-anchor="middle" font-family="Arial, sans-serif">${xmlEscape(truncateText(data.tierName, 20))}</text>
-
-  <g transform="translate(585 84.5) rotate(-90)">
-    <text x="0" y="0" fill="${BRAND_ORANGE}" font-size="5.5" text-anchor="middle" font-family="Arial, sans-serif">${xmlEscape(data.ticketId.toUpperCase())}</text>
+  <g transform="translate(585 100) rotate(-90)">
+    <text x="0" y="0" fill="${BRAND_ORANGE}" font-size="6" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${xmlEscape(data.ticketId)}</text>
   </g>
 </svg>`;
 
   const resvg = new Resvg(svg, {
     fitTo: {
       mode: 'width',
-      value: PAGE_WIDTH * 2,
+      value: PAGE_WIDTH,
     },
     font: {
       loadSystemFonts: true,
+      fontDirs: [
+        '/usr/share/fonts',
+        '/usr/local/share/fonts',
+        '/usr/share/fonts/truetype',
+        '/usr/share/fonts/opentype',
+        'C:\\Windows\\Fonts',
+        'C:\\Program Files\\Common Files\\Adobe\\Fonts',
+      ],
     },
   });
 

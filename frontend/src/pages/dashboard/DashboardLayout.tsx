@@ -24,7 +24,7 @@ export function DashboardLayout() {
       <div className="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-8">
         <div className="hidden md:block">
           <img 
-            src="/banglafest logo.png" 
+            src="/banglafest-flat-logo.png" 
             alt="Banglafest Logo" 
             className="w-24 h-24 object-contain"
           />
@@ -43,7 +43,7 @@ export function DashboardLayout() {
           {/* Logo - Hidden on Mobile */}
           {/* <div className="hidden md:flex flex-col items-center mb-6 pb-6 border-b border-gray-800">
             <img 
-              src="/banglafest logo.png" 
+              src="/banglafest-flat-logo.png" 
               alt="Banglafest Logo" 
               className="w-20 h-20 object-contain"
             />

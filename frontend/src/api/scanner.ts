@@ -19,4 +19,7 @@ export const scannerApi = {
 
   search: (query: string) =>
     api.get<{ results: SearchResult[]; count: number }>('/api/scanner/search', { params: { q: query } }),
+
+  toggleInStatus: (ticketId: string) =>
+    api.post<{ success: boolean; inStatus: boolean; message: string }>('/api/scanner/toggle-in-status', { ticketId }),
 };

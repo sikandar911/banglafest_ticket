@@ -13,7 +13,7 @@ export function Layout() {
           <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-4">
             <div className="flex items-center gap-3">
               <img 
-                src="/banglafest logo.png" 
+                src="/banglafest-flat-logo.png" 
                 alt="Banglafest Logo" 
                 className="w-20 h-20 md:w-32 md:h-32 object-contain"
               />

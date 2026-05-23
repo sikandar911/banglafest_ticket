@@ -30,12 +30,19 @@ export function MyTicketsPage() {
 
   const printAllPdf = async () => {
     const response = await userApi.downloadAllTicketsPdf();
-    triggerBlobDownload(response.data, 'banglafest-all-tickets.pdf');
+    // Get event names from tickets for filename
+    const eventNames = tickets.map(t => t.event.title).filter((v, i, a) => a.indexOf(v) === i).join(' & ');
+    const fileName = eventNames ? `ticket - ${eventNames}.pdf` : 'ticket - banglafest.pdf';
+    triggerBlobDownload(response.data, fileName);
   };
 
   const downloadTicket = async (ticketId: string) => {
-    const response = await userApi.downloadTicketPng(ticketId);
-    triggerBlobDownload(response.data, `banglafest-ticket-${ticketId.slice(0, 8)}.png`);
+    const ticket = tickets.find(t => t.id === ticketId);
+    const response = await userApi.downloadTicketPdf(ticketId);
+    const fileName = ticket 
+      ? `${ticket.attendeeName || 'Guest'} - ${ticket.event.title}.pdf`
+      : `banglafest-ticket-${ticketId.slice(0, 8)}.pdf`;
+    triggerBlobDownload(response.data, fileName);
   };
 
   if (isLoading) return <PageSpinner />;

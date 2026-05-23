@@ -26,8 +26,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary-400">
-            <Ticket className="w-6 h-6" />
-            Banglafest
+            <img src="/banglafest-flat-logo.png" alt="Banglafest" className="w-45 h-10 object-contain" />
           </Link>
 
           {/* Desktop nav */}

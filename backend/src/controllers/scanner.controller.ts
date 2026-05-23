@@ -65,10 +65,10 @@ export async function scanTicket(req: AuthRequest, res: Response, next: NextFunc
       return;
     }
 
-    // Mark as CHECKED_IN
+    // Mark as CHECKED_IN and set inStatus to true
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
-      data: { status: 'CHECKED_IN', scannedAt: new Date() },
+      data: { status: 'CHECKED_IN', scannedAt: new Date(), inStatus: true },
     });
 
     res.json({
@@ -85,6 +85,7 @@ export async function scanTicket(req: AuthRequest, res: Response, next: NextFunc
         eventDate: ticket.ticketTier.event.startTime,
         location: ticket.ticketTier.event.location,
         checkedInAt: updated.scannedAt,
+        inStatus: updated.inStatus,
       },
     });
   } catch (err) {
@@ -145,6 +146,46 @@ export async function searchTickets(req: Request, res: Response, next: NextFunct
     );
 
     res.json({ results, count: results.length });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/scanner/toggle-in-status
+export async function toggleInStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { ticketId } = req.body;
+
+    if (!ticketId) {
+      res.status(400).json({ error: 'ticketId is required.' });
+      return;
+    }
+
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+    });
+
+    if (!ticket) {
+      res.status(404).json({ error: 'Ticket not found.' });
+      return;
+    }
+
+    if (ticket.status !== 'CHECKED_IN') {
+      res.status(400).json({ error: 'Only checked-in tickets can be toggled.' });
+      return;
+    }
+
+    // Toggle inStatus
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { inStatus: !ticket.inStatus },
+    });
+
+    res.json({
+      success: true,
+      inStatus: updated.inStatus,
+      message: updated.inStatus ? 'Ticket checked in' : 'Ticket checked out',
+    });
   } catch (err) {
     next(err);
   }

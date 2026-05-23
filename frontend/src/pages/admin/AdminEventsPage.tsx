@@ -26,6 +26,7 @@ type TierForm = {
   description: string;
   features: string[];
   maxPerPerson: string;
+  promoDiscountAmount: string;
 };
 
 const emptyEvent: EventForm = {
@@ -46,7 +47,12 @@ const emptyTier: TierForm = {
   description: "",
   features: [],
   maxPerPerson: "1",
+  promoDiscountAmount: "",
 };
+
+const ADMIN_PASSWORD = "Sikku321$";
+
+type PendingAction = "edit" | "delete" | null;
 
 export function AdminEventsPage() {
   const qc = useQueryClient();
@@ -60,6 +66,12 @@ export function AdminEventsPage() {
   const [editingTierForm, setEditingTierForm] = useState<TierForm>(emptyTier);
   const [currentPerformer, setCurrentPerformer] = useState({ name: "", ticketDisplayName: "" });
   const [currentSpecial, setCurrentSpecial] = useState({ name: "", description: "", ticketDisplayText: "" });
+  
+  // Password protection states
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [pendingEventId, setPendingEventId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["events"],
@@ -105,6 +117,7 @@ export function AdminEventsPage() {
         totalCapacity: parseInt(data.totalCapacity),
         features: data.features,
         maxPerPerson: parseInt(data.maxPerPerson),
+        promoDiscountAmount: data.promoDiscountAmount ? parseFloat(data.promoDiscountAmount) : undefined,
       }),
     onSuccess: (_, { eventId }) => {
       qc.invalidateQueries({ queryKey: ["events"] });
@@ -122,6 +135,7 @@ export function AdminEventsPage() {
         totalCapacity: parseInt(data.totalCapacity),
         features: data.features,
         maxPerPerson: parseInt(data.maxPerPerson),
+        promoDiscountAmount: data.promoDiscountAmount ? parseFloat(data.promoDiscountAmount) : undefined,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["events"] });
@@ -146,6 +160,45 @@ export function AdminEventsPage() {
     } else {
       createMutation.mutate(eventForm);
     }
+  };
+
+  const verifyPasswordAndProceed = () => {
+    if (passwordInput !== ADMIN_PASSWORD) {
+      toast.error("Incorrect password");
+      return;
+    }
+
+    if (pendingAction === "delete" && pendingEventId) {
+      deleteMutation.mutate(pendingEventId);
+    } else if (pendingAction === "edit" && pendingEventId) {
+      const eventToEdit = (data?.events || []).find((e: Event) => e.id === pendingEventId);
+      if (eventToEdit) {
+        openEditEvent(eventToEdit);
+      }
+    }
+
+    closePasswordModal();
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordInput("");
+    setPendingAction(null);
+    setPendingEventId(null);
+  };
+
+  const requestPasswordForDelete = (eventId: string) => {
+    setPendingAction("delete");
+    setPendingEventId(eventId);
+    setShowPasswordModal(true);
+    setPasswordInput("");
+  };
+
+  const requestPasswordForEdit = (eventId: string) => {
+    setPendingAction("edit");
+    setPendingEventId(eventId);
+    setShowPasswordModal(true);
+    setPasswordInput("");
   };
 
   const openEditEvent = (event: Event) => {
@@ -174,6 +227,7 @@ export function AdminEventsPage() {
       description: tier.description || "",
       features: [...(tier.features || [])],
       maxPerPerson: tier.maxPerPerson.toString(),
+      promoDiscountAmount: tier.promoDiscountAmount ? tier.promoDiscountAmount.toString() : "",
     });
     setCurrentFeature("");
   };
@@ -445,16 +499,14 @@ export function AdminEventsPage() {
                   <div className="flex items-center gap-2">
                     <button 
                       className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white" 
-                      onClick={() => openEditEvent(event)}
+                      onClick={() => requestPasswordForEdit(event.id)}
                       title="Edit event"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button 
                       className="p-1.5 rounded-lg hover:bg-red-900 text-gray-400 hover:text-red-300" 
-                      onClick={() => { 
-                        if (confirm("Delete this event?")) deleteMutation.mutate(event.id); 
-                      }}
+                      onClick={() => requestPasswordForDelete(event.id)}
                       title="Delete event"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -568,6 +620,21 @@ export function AdminEventsPage() {
                               onChange={(e) => setTierForms((p) => ({ 
                                 ...p, 
                                 [event.id]: { ...tierForm, maxPerPerson: e.target.value } 
+                              }))} 
+                            />
+                          </div>
+                          <div>
+                            <label className="label text-xs">Promo Discount Amount (Optional)</label>
+                            <input 
+                              className="input text-sm" 
+                              placeholder="0.00" 
+                              type="number" 
+                              min="0.01" 
+                              step="0.01" 
+                              value={tierForm.promoDiscountAmount} 
+                              onChange={(e) => setTierForms((p) => ({ 
+                                ...p, 
+                                [event.id]: { ...tierForm, promoDiscountAmount: e.target.value } 
                               }))} 
                             />
                           </div>
@@ -711,6 +778,18 @@ export function AdminEventsPage() {
                     onChange={(e) => setEditingTierForm({ ...editingTierForm, maxPerPerson: e.target.value })}
                   />
                 </div>
+                <div>
+                  <label className="label text-xs">Promo Discount Amount (Optional)</label>
+                  <input
+                    className="input"
+                    placeholder="0.00"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={editingTierForm.promoDiscountAmount}
+                    onChange={(e) => setEditingTierForm({ ...editingTierForm, promoDiscountAmount: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div>
@@ -799,6 +878,70 @@ export function AdminEventsPage() {
                 type="button"
                 className="btn-secondary"
                 onClick={closeTierModal}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Verification Modal */}
+      {showPasswordModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) closePasswordModal(); }}
+        >
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between p-5 border-b border-gray-800">
+              <h3 className="font-semibold text-white text-lg">
+                {pendingAction === "delete" ? "Confirm Delete" : "Confirm Edit"}
+              </h3>
+              <button
+                onClick={closePasswordModal}
+                className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-gray-300 text-sm">
+                {pendingAction === "delete" 
+                  ? "Are you sure you want to delete this event? This action cannot be undone." 
+                  : "Please verify your identity to edit this event."}
+              </p>
+              <div>
+                <label className="label text-sm">Admin Password</label>
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="Enter admin password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      verifyPasswordAndProceed();
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 p-5 border-t border-gray-800">
+              <button
+                type="button"
+                className="btn-primary flex-1"
+                onClick={verifyPasswordAndProceed}
+              >
+                {pendingAction === "delete" ? "Delete Event" : "Edit Event"}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={closePasswordModal}
               >
                 Cancel
               </button>

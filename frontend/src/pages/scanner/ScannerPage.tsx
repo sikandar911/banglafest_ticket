@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import jsQR from 'jsqr';
 import { scannerApi, SearchResult } from '../../api/scanner';
 import type { ScanResponse } from '../../types';
+import toast from 'react-hot-toast';
 
 type ScanResult = ScanResponse;
 
@@ -15,6 +16,7 @@ export function ScannerPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [currentInStatus, setCurrentInStatus] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,11 +26,28 @@ export function ScannerPage() {
 
   const scanMutation = useMutation({
     mutationFn: (id: string) => scannerApi.scan(id).then((r) => r.data),
-    onSuccess: (data) => { setScanResult(data); setIsScanning(false); },
+    onSuccess: (data) => { 
+      setScanResult(data);
+      if (data.ticket?.inStatus !== undefined) {
+        setCurrentInStatus(data.ticket.inStatus);
+      }
+      setIsScanning(false);
+    },
     onError: (err: any) => {
       const d = err?.response?.data;
       setScanResult(d ?? { valid: false, reason: 'INVALID_TICKET', message: 'Ticket not found.' });
       setIsScanning(false);
+    },
+  });
+
+  const toggleInStatusMutation = useMutation({
+    mutationFn: (ticketId: string) => scannerApi.toggleInStatus(ticketId).then((r) => r.data),
+    onSuccess: (data) => {
+      setCurrentInStatus(data.inStatus);
+      toast.success(data.message);
+    },
+    onError: () => {
+      toast.error('Failed to toggle in/out status');
     },
   });
 
@@ -115,6 +134,7 @@ export function ScannerPage() {
 
   const dismissResult = () => {
     setScanResult(null);
+    setCurrentInStatus(false);
     lastScannedRef.current = '';
     setIsScanning(false);
     if (mode === 'camera' && cameraActive) startScanLoop();
@@ -146,7 +166,7 @@ export function ScannerPage() {
           </p>
 
           {/* Ticket details */}
-          {scanResult.ticket && (
+          {scanResult.ticket ? (
             <div className="mt-4 w-full max-w-sm bg-black/30 rounded-2xl p-5 space-y-2 text-center">
               {(scanResult.ticket.holder) && (
                 <p className="text-2xl font-bold text-white">{scanResult.ticket.holder}</p>
@@ -179,8 +199,34 @@ export function ScannerPage() {
                   </p>
                 )}
               </div>
+
+              {(scanResult.valid || scanResult.reason === 'ALREADY_USED') && (
+                <div className="mt-4 flex items-center justify-between bg-white/5 rounded-lg p-4">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase">Status</p>
+                    <p className={`text-lg font-bold ${currentInStatus ? 'text-green-400' : 'text-orange-400'}`}>
+                      {currentInStatus ? 'CHECKED IN' : 'CHECKED OUT'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => scanResult.ticket?.id && toggleInStatusMutation.mutate(scanResult.ticket.id)}
+                    disabled={toggleInStatusMutation.isPending}
+                    className={`px-6 py-2 rounded-lg font-semibold text-sm transition-all ${
+                      currentInStatus
+                        ? 'bg-green-800 hover:bg-green-700 text-green-200'
+                        : 'bg-orange-800 hover:bg-orange-700 text-orange-200'
+                    } disabled:opacity-50`}
+                  >
+                    {toggleInStatusMutation.isPending ? '...' : currentInStatus ? 'Check Out' : 'Check In'}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          ) : !scanResult.valid && scanResult.reason !== 'ALREADY_USED' ? (
+            <div className="mt-4 w-full max-w-sm bg-black/30 rounded-2xl p-5 space-y-2 text-center">
+              <p className="text-sm text-gray-300">This ticket is not registered in this system.</p>
+            </div>
+          ) : null}
 
           <button
             onClick={dismissResult}

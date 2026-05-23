@@ -147,6 +147,8 @@ export async function sendTicketConfirmationEmail(
     quantity: number;
     unitPrice: number;
     totalAmount: number;
+    discountAmount?: number;
+    promoCode?: string;
   }
 ): Promise<void> {
   const attachments = tickets.map((t, i) => ({
@@ -253,11 +255,25 @@ export async function sendTicketConfirmationEmail(
                   <td style="padding: 12px; text-align: right; color: #1a1a2e;">£${orderInfo.unitPrice.toFixed(2)}</td>
                   <td style="padding: 12px; text-align: right; color: #1a1a2e;">£${(orderInfo.unitPrice * orderInfo.quantity).toFixed(2)}</td>
                 </tr>
+                ${orderInfo.discountAmount && orderInfo.discountAmount > 0 ? `
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 12px; color: #27ae60;"><strong>Promo Discount${orderInfo.promoCode ? ` (${orderInfo.promoCode})` : ''}</strong></td>
+                  <td style="padding: 12px; text-align: center; color: #27ae60;">-</td>
+                  <td style="padding: 12px; text-align: right; color: #27ae60;">-</td>
+                  <td style="padding: 12px; text-align: right; color: #27ae60;"><strong>-£${orderInfo.discountAmount.toFixed(2)}</strong></td>
+                </tr>
+                ` : ''}
               </tbody>
             </table>
 
             <!-- Total Amount -->
             <div style="text-align: right; padding-top: 15px; border-top: 2px solid #e94560;">
+              ${orderInfo.discountAmount && orderInfo.discountAmount > 0 ? `
+              <div style="margin-bottom: 15px;">
+                <p style="margin: 0 0 8px 0; color: #666; font-size: 12px;">Subtotal:</p>
+                <p style="margin: 0; font-size: 16px; color: #1a1a2e;">£${(orderInfo.totalAmount + orderInfo.discountAmount).toFixed(2)}</p>
+              </div>
+              ` : ''}
               <p style="margin: 0 0 10px 0; color: #666; font-size: 12px;">TOTAL AMOUNT</p>
               <p style="margin: 0; font-size: 28px; font-weight: bold; color: #e94560;">£${orderInfo.totalAmount.toFixed(2)}</p>
               <p style="margin: 5px 0 0; color: #666; font-size: 12px;">Order Status: <strong>Completed</strong></p>

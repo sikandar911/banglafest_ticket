@@ -552,6 +552,8 @@ export async function resendTicket(req: Request, res: Response, next: NextFuncti
         quantity: 1,
         unitPrice: Number(ticket.ticketTier.price),
         totalAmount: Number(ticket.order.totalAmount),
+        discountAmount: ticket.order.discountAmount ? Number(ticket.order.discountAmount) : undefined,
+        promoCode: ticket.order.promoCode?.code,
       }
     );
 
@@ -617,6 +619,8 @@ export async function resendOrderTickets(req: Request, res: Response, next: Next
         quantity: activeTickets.length,
         unitPrice: Number(order.ticketTier.price),
         totalAmount: Number(order.totalAmount),
+        discountAmount: order.discountAmount ? Number(order.discountAmount) : undefined,
+        promoCode: order.promoCode?.code,
       }
     );
 
@@ -733,6 +737,8 @@ export async function bypassBookTicket(req: AuthRequest, res: Response, next: Ne
         quantity: quantity,
         unitPrice: Number(order.ticketTier.price),
         totalAmount: Number(order.totalAmount),
+        discountAmount: order.discountAmount ? Number(order.discountAmount) : undefined,
+        promoCode: order.promoCode?.code,
       }
     );
 

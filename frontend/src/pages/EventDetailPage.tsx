@@ -473,7 +473,7 @@ export function EventDetailPage() {
                     <span className="text-sm text-gray-300 flex-1">
                       I agree to the{' '}
                       <a
-                        href="/terms-and-conditions"
+                        href="/terms"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary-400 hover:text-primary-300 underline font-medium"

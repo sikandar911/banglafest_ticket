@@ -21,9 +21,6 @@ export const userApi = {
 
   getMyOrders: () => api.get<{ orders: Order[] }>('/api/users/me/orders'),
 
-  downloadTicketPng: (ticketId: string) =>
-    api.get(`/api/users/me/tickets/${ticketId}/png`, { responseType: 'blob' }),
-
   downloadTicketPdf: (ticketId: string) =>
     api.get(`/api/users/me/tickets/${ticketId}/pdf`, { responseType: 'blob' }),
 

@@ -199,6 +199,8 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
         quantity: order.quantity,
         unitPrice: Number(order.ticketTier.price),
         totalAmount: Number(order.totalAmount),
+        discountAmount: order.discountAmount ? Number(order.discountAmount) : undefined,
+        promoCode: order.promoCode?.code,
       }
     );
 
@@ -307,6 +309,8 @@ export async function setAttendeeNames(req: AuthRequest, res: Response, next: Ne
             quantity: tickets.length,
             unitPrice: Number(firstTicket.ticketTier.price),
             totalAmount: Number(order.totalAmount),
+            discountAmount: order.discountAmount ? Number(order.discountAmount) : undefined,
+            promoCode: order.promoCode?.code,
           }
         ).catch((err) => console.error('[setAttendeeNames] Failed to send ticket email:', err));
       }

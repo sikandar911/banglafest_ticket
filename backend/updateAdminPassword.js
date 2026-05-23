@@ -8,7 +8,7 @@ async function updateAdminPassword() {
     console.log('🔄 Updating admin password...\n');
 
     const adminEmail = 'admin@banglafest.com';
-    const newPassword = 'Ambrosian2026AMB';
+    const newPassword = 'Ambrosian2026ticket';
 
     // Find existing admin
     const admin = await prisma.user.findUnique({

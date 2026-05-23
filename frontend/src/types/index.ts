@@ -160,6 +160,7 @@ export interface ScanResponse {
     checkedInAt?: string;
     eventDate?: string;
     location?: string;
+    inStatus?: boolean;
   };
 }
 
