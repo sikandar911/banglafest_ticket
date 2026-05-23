@@ -81,8 +81,8 @@ function resolveLogoPath(): string | null {
 
 function resolveAmbrosianLogoPath(): string | null {
   const candidates = [
-    // Prod mode: dist/assets/ambrosian wide.png (from dist directory, __dirname is dist)
-    path.join(__dirname, 'assets/ambrosian wide.png'),
+    // Prod mode: dist/assets/ambrosian wide.png (__dirname is dist/services, go up one level)
+    path.join(__dirname, '../assets/ambrosian wide.png'),
     // Fallback prod: from cwd
     path.join(process.cwd(), 'dist/assets/ambrosian wide.png'),
     // Dev mode: public/ambrosian wide.png
