@@ -36,6 +36,10 @@ export function ScannerPage() {
     onError: (err: any) => {
       const d = err?.response?.data;
       setScanResult(d ?? { valid: false, reason: 'INVALID_TICKET', message: 'Ticket not found.' });
+      // Capture inStatus from error response (e.g., ALREADY_USED returns 409)
+      if (d?.ticket?.inStatus !== undefined) {
+        setCurrentInStatus(d.ticket.inStatus);
+      }
       setIsScanning(false);
     },
   });
@@ -122,8 +126,11 @@ export function ScannerPage() {
     if (cameraActive && !isScanning && !scanResult) {
       cancelAnimationFrame(rafRef.current);
       startScanLoop();
+    } else if (scanResult) {
+      // Stop scanning when result is shown
+      cancelAnimationFrame(rafRef.current);
     }
-  }, [isScanning, cameraActive, scanResult]);
+  }, [isScanning, cameraActive, scanResult, startScanLoop]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();

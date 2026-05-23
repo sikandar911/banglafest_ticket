@@ -81,11 +81,14 @@ function resolveLogoPath(): string | null {
 
 function resolveAmbrosianLogoPath(): string | null {
   const candidates = [
+    // Prod mode: dist/assets/ambrosian wide.png (copied during build)
+    path.join(__dirname, '../assets/ambrosian wide.png'),
+    // Fallback prod: from cwd
+    path.join(process.cwd(), 'dist/assets/ambrosian wide.png'),
     // Dev mode: public/ambrosian wide.png
     path.join(__dirname, '../../public/ambrosian wide.png'),
-    // Prod mode: dist/../public/ambrosian wide.png
     path.join(process.cwd(), 'public/ambrosian wide.png'),
-    // Fallback locations
+    // Other fallback locations
     path.join(process.cwd(), 'src/../public/ambrosian wide.png'),
   ];
 

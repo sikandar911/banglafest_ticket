@@ -29,19 +29,13 @@ export function MyTicketsPage() {
   };
 
   const printAllPdf = async () => {
-    const uniqueEvents = [...new Set(tickets.map(t => t.event.title))];
-    const eventNames = uniqueEvents.join(' & ');
     const response = await userApi.downloadAllTicketsPdf();
-    triggerBlobDownload(response.data, `ticket - ${eventNames}.pdf`);
+    triggerBlobDownload(response.data, 'banglafest-all-tickets.pdf');
   };
 
   const downloadTicket = async (ticketId: string) => {
-    const ticket = tickets.find(t => t.id === ticketId);
-    const fileName = ticket
-      ? `${ticket.attendeeName || 'Attendee'} - ${ticket.event.title}.pdf`
-      : `ticket-${ticketId.slice(0, 8)}.pdf`;
     const response = await userApi.downloadTicketPdf(ticketId);
-    triggerBlobDownload(response.data, fileName);
+    triggerBlobDownload(response.data, `banglafest-ticket-${ticketId.slice(0, 8)}.pdf`);
   };
 
   if (isLoading) return <PageSpinner />;

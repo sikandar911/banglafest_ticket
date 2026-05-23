@@ -60,6 +60,7 @@ export async function scanTicket(req: AuthRequest, res: Response, next: NextFunc
           event: ticket.ticketTier.event.title,
           isBypassed: ticket.order?.isBypassed,
           scannedAt: ticket.scannedAt,
+          inStatus: ticket.inStatus,
         },
       });
       return;

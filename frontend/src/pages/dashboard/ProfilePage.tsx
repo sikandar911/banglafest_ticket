@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Mail, User as UserIcon, Shield, Lock } from 'lucide-react';
+import { Mail, User as UserIcon, Shield, Lock, Camera } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { userApi } from '../../api/user';
 import { PageSpinner } from '../../components/ui/Spinner';
 import { RoleBadge } from '../../components/ui/Badge';
@@ -8,6 +9,7 @@ import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: () => userApi.getProfile().then((r) => r.data),
@@ -154,6 +156,27 @@ export function ProfilePage() {
           </form>
         )}
       </div>
+
+      {/* Scanner Button - visible only to SCANNER and ADMIN roles */}
+      {(user.role === 'SCANNER' || user.role === 'ADMIN') && (
+        <div className="card">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Camera className="w-5 h-5 text-primary-400" />
+              <div>
+                <h3 className="text-lg font-bold text-white">Scanner</h3>
+                <p className="text-sm text-gray-400">Access ticket scanning interface</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/scanner')}
+              className="w-full sm:w-auto btn-primary py-2.5 px-6 text-sm font-medium whitespace-nowrap"
+            >
+              Open Scanner
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
