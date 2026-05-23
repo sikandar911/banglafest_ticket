@@ -7,6 +7,7 @@ interface TicketResponse {
   status: 'VALID' | 'CHECKED_IN' | 'CANCELLED';
   scannedAt?: string;
   createdAt: string;
+  attendeeName: string | null;
   qrCode: string;
   serialNumber?: number;
   event: { id: string; title: string; startTime: string; endTime: string; location?: string; imageUrl?: string };
