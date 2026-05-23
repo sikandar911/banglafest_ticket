@@ -128,6 +128,7 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
       include: {
         user: true,
         ticketTier: { include: { event: true } },
+        promoCode: true,
       },
     });
 
@@ -223,7 +224,10 @@ export async function setAttendeeNames(req: AuthRequest, res: Response, next: Ne
       return;
     }
 
-    const order = await prisma.order.findUnique({ where: { id } });
+    const order = await prisma.order.findUnique({ 
+      where: { id },
+      include: { promoCode: true },
+    });
 
     if (!order) {
       res.status(404).json({ error: 'Order not found.' });

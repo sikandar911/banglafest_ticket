@@ -1,6 +1,7 @@
 import { Response, NextFunction, Request } from 'express';
 import Stripe from 'stripe';
 import { Decimal } from '@prisma/client/runtime/library';
+import { PromoCode } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
 import {
@@ -118,7 +119,8 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       user: true, 
       ticketTier: { 
         select: { id: true, name: true, price: true, features: true, event: true }
-      }
+      },
+      promoCode: true,
     },
   });
 
@@ -138,7 +140,8 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       user: true, 
       ticketTier: { 
         select: { id: true, name: true, price: true, features: true, event: true }
-      }
+      },
+      promoCode: true,
     },
   });
   if (!order || order.status !== 'PENDING') return;
@@ -182,6 +185,7 @@ async function fulfillOrder(
   order: Awaited<ReturnType<typeof prisma.order.findUnique>> & {
     user: { name: string; email: string };
     ticketTier: { id: string; name: string; price: Decimal; features: string | null; event: { title: string; startTime: Date; location: string | null; performers: string | null; specialAdditions: string | null } };
+    promoCode: PromoCode | null;
   },
   paymentIntentId?: string
 ): Promise<void> {

@@ -29,19 +29,18 @@ export function MyTicketsPage() {
   };
 
   const printAllPdf = async () => {
+    const uniqueEvents = [...new Set(tickets.map(t => t.event.title))];
+    const eventNames = uniqueEvents.join(' & ');
     const response = await userApi.downloadAllTicketsPdf();
-    // Get event names from tickets for filename
-    const eventNames = tickets.map(t => t.event.title).filter((v, i, a) => a.indexOf(v) === i).join(' & ');
-    const fileName = eventNames ? `ticket - ${eventNames}.pdf` : 'ticket - banglafest.pdf';
-    triggerBlobDownload(response.data, fileName);
+    triggerBlobDownload(response.data, `ticket - ${eventNames}.pdf`);
   };
 
   const downloadTicket = async (ticketId: string) => {
     const ticket = tickets.find(t => t.id === ticketId);
+    const fileName = ticket
+      ? `${ticket.attendeeName || 'Attendee'} - ${ticket.event.title}.pdf`
+      : `ticket-${ticketId.slice(0, 8)}.pdf`;
     const response = await userApi.downloadTicketPdf(ticketId);
-    const fileName = ticket 
-      ? `${ticket.attendeeName || 'Guest'} - ${ticket.event.title}.pdf`
-      : `banglafest-ticket-${ticketId.slice(0, 8)}.pdf`;
     triggerBlobDownload(response.data, fileName);
   };
 

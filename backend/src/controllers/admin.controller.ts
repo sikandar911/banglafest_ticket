@@ -509,7 +509,7 @@ export async function resendTicket(req: Request, res: Response, next: NextFuncti
       include: {
         user: { select: { name: true, email: true } },
         ticketTier: { include: { event: true } },
-        order: { select: { id: true, totalAmount: true } },
+        order: { include: { promoCode: true } },
       },
     });
 
@@ -574,6 +574,7 @@ export async function resendOrderTickets(req: Request, res: Response, next: Next
         tickets: true,
         user: { select: { name: true, email: true } },
         ticketTier: { include: { event: true } },
+        promoCode: true,
       },
     });
 
@@ -676,6 +677,7 @@ export async function bypassBookTicket(req: AuthRequest, res: Response, next: Ne
       },
       include: {
         ticketTier: { include: { event: true } },
+        promoCode: true,
       },
     });
 
