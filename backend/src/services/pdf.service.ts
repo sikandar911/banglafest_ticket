@@ -92,18 +92,22 @@ function resolveAmbrosianLogoPath(): string | null {
     path.join(process.cwd(), 'src/../public/ambrosian wide.png'),
   ];
 
+  console.log(`[PDF Service] Resolving Ambrosian logo. __dirname=${__dirname}, cwd=${process.cwd()}`);
+  console.log(`[PDF Service] Candidates: ${JSON.stringify(candidates)}`);
+
   for (const candidate of candidates) {
     try {
       if (fs.existsSync(candidate)) {
-        console.log(`[PDF Service] Ambrosian logo found at: ${candidate}`);
+        const stats = fs.statSync(candidate);
+        console.log(`[PDF Service] ✓ Ambrosian logo found at: ${candidate} (${stats.size} bytes)`);
         return candidate;
       }
     } catch (err) {
-      // Continue to next candidate
+      console.log(`[PDF Service] Error checking ${candidate}: ${err}`);
     }
   }
 
-  console.warn(`[PDF Service] Ambrosian logo not found.`);
+  console.error(`[PDF Service] ✗ Ambrosian logo NOT found. Checked ${candidates.length} candidates.`);
   return null;
 }
 
@@ -155,9 +159,16 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
 
   // Ambrosian Logo (enlarged, top left)
   if (AMBROSIAN_LOGO_PATH) {
-    doc.image(AMBROSIAN_LOGO_PATH, 6, offsetY + 2, {
-      fit: [180, 66],
-    });
+    try {
+      doc.image(AMBROSIAN_LOGO_PATH, 6, offsetY + 2, {
+        fit: [180, 66],
+      });
+      console.log(`[PDF] ✓ Ambrosian logo rendered successfully`);
+    } catch (err) {
+      console.error(`[PDF] ✗ Error rendering Ambrosian logo: ${err}`);
+    }
+  } else {
+    console.warn(`[PDF] ⚠ Ambrosian logo path is null - cannot render`);
   }
 
   // PRESENTS text (placed directly under Ambrosian logo - no gap)
@@ -382,13 +393,34 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
   const qrBuffer = await fetchQrBuffer(data.ticketId);
   const qrDataUri = `data:image/png;base64,${qrBuffer.toString('base64')}`;
 
-  const logoDataUri = LOGO_PATH
-    ? `data:image/png;base64,${fs.readFileSync(LOGO_PATH).toString('base64')}`
-    : null;
+  let logoDataUri: string | null = null;
+  if (LOGO_PATH) {
+    try {
+      const logoBuffer = fs.readFileSync(LOGO_PATH);
+      logoDataUri = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      console.log(`[PNG] ✓ Banglafest logo loaded (${logoBuffer.length} bytes)`);
+    } catch (err) {
+      console.error(`[PNG] ✗ Error loading Banglafest logo: ${err}`);
+    }
+  }
 
-  const ambrosianLogoDataUri = AMBROSIAN_LOGO_PATH
-    ? `data:image/png;base64,${fs.readFileSync(AMBROSIAN_LOGO_PATH).toString('base64')}`
-    : null;
+  let ambrosianLogoDataUri: string | null = null;
+  if (AMBROSIAN_LOGO_PATH) {
+    try {
+      const ambrosianBuffer = fs.readFileSync(AMBROSIAN_LOGO_PATH);
+      console.log(`[PNG] Ambrosian logo file size: ${ambrosianBuffer.length} bytes`);
+      if (ambrosianBuffer.length > 100) {
+        ambrosianLogoDataUri = `data:image/png;base64,${ambrosianBuffer.toString('base64')}`;
+        console.log(`[PNG] ✓ Ambrosian logo loaded (${ambrosianBuffer.length} bytes)`);
+      } else {
+        console.warn(`[PNG] ⚠ Ambrosian logo file is too small (${ambrosianBuffer.length} bytes) - likely corrupted`);
+      }
+    } catch (err) {
+      console.error(`[PNG] ✗ Error loading Ambrosian logo: ${err}`);
+    }
+  } else {
+    console.warn(`[PNG] ⚠ AMBROSIAN_LOGO_PATH is null`);
+  }
 
   const venue = data.location || 'To Be Announced';
   const venueCommaIndex = venue.indexOf(',');
@@ -430,7 +462,7 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
   <!-- Ambrosian Logo at top left -->
   ${ambrosianLogoDataUri
     ? `<image href="${ambrosianLogoDataUri}" x="2" y="2" width="180" height="66" preserveAspectRatio="xMinYMin meet"/>`
-    : ''}
+    : `<!-- AMBROSIAN LOGO NOT FOUND - PATH: ${AMBROSIAN_LOGO_PATH || 'NULL'} --><rect x="2" y="2" width="180" height="66" fill="#f26522" stroke="#444" stroke-width="1"/><text x="92" y="35" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle" font-family="Arial">AMBROSIAN</text>`}
   
   <!-- Banglafest Logo (shrunk to fit under Ambrosian) -->
   ${logoDataUri
