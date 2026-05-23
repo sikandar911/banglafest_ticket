@@ -81,15 +81,13 @@ function resolveLogoPath(): string | null {
 
 function resolveAmbrosianLogoPath(): string | null {
   const candidates = [
-    // Prod mode: dist/assets/ambrosian wide.png (__dirname is dist/services, go up one level)
-    path.join(__dirname, '../assets/ambrosian wide.png'),
-    // Fallback prod: from cwd
-    path.join(process.cwd(), 'dist/assets/ambrosian wide.png'),
-    // Dev mode: public/ambrosian wide.png
-    path.join(__dirname, '../../public/ambrosian wide.png'),
+    // Production (Docker): After git clone, public/ folder exists
     path.join(process.cwd(), 'public/ambrosian wide.png'),
-    // Other fallback locations
-    path.join(process.cwd(), 'src/../public/ambrosian wide.png'),
+    // Dev mode: src/services relative to public
+    path.join(__dirname, '../../public/ambrosian wide.png'),
+    // Prod mode: if npm run build was executed in container
+    path.join(__dirname, '../assets/ambrosian wide.png'),
+    path.join(process.cwd(), 'dist/assets/ambrosian wide.png'),
   ];
 
   console.log(`[PDF Service] Resolving Ambrosian logo. __dirname=${__dirname}, cwd=${process.cwd()}`);
