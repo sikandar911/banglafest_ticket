@@ -1,8 +1,11 @@
 import { Response, NextFunction } from 'express';
+import Stripe from 'stripe';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/authenticate';
 import { sendTicketConfirmationEmail } from '../services/email.service';
 import { generateTicketPdf } from '../services/pdf.service';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-04-10' });
 
 // POST /api/orders
 // Creates a PENDING order and reserves tickets using a Prisma transaction
@@ -137,6 +140,20 @@ export async function confirmOrder(req: AuthRequest, res: Response, next: NextFu
     if (order.status === 'PAID') { res.json({ orderId: order.id, message: 'Order already confirmed.' }); return; }
     if (order.status !== 'PENDING') { res.status(400).json({ error: 'Order is no longer pending.' }); return; }
     if (order.expiresAt < new Date()) { res.status(400).json({ error: 'Order has expired. Please start a new checkout.' }); return; }
+
+    // For non-bypassed orders, verify Stripe actually charged the card before issuing tickets.
+    // This prevents the free-ticket bypass where a user calls this endpoint without paying.
+    if (!order.isBypassed) {
+      if (!order.stripePaymentIntent) {
+        res.status(402).json({ error: 'Payment not initiated.' });
+        return;
+      }
+      const pi = await stripe.paymentIntents.retrieve(order.stripePaymentIntent);
+      if (pi.status !== 'succeeded') {
+        res.status(402).json({ error: 'Payment has not been completed.' });
+        return;
+      }
+    }
 
     // Atomic status transition — prevents double-confirmation if webhook and
     // frontend confirmOrder race each other

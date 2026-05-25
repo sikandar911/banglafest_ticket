@@ -110,7 +110,7 @@ export async function stripeWebhook(req: Request, res: Response, next: NextFunct
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-  const orderId = paymentIntent.metadata?.orderId;
+  const orderId = paymentIntent.metadata?.order_id;
   if (!orderId) return;
 
   const order = await prisma.order.findUnique({
