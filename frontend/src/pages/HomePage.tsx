@@ -26,7 +26,7 @@ export function HomePage() {
       {/* Hero */}
       <div className="text-center mb-16">
         <h1 className="text-5xl font-extrabold text-white mb-4">
-          <span className="text-primary-400">Bangla</span>fest 2026
+          <span className="text-primary-700">Bangla</span>fest & Award UK
         </h1>
         <p className="text-xl text-gray-400 max-w-2xl mx-auto">
           Celebrate culture, music, and community. Get your tickets before they sell out.

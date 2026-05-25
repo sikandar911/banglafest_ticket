@@ -54,7 +54,7 @@ export function Navbar() {
                 Scanner
               </Link>
             )}
-            {(user?.role === 'SALES_EXECUTIVE' || user?.role === 'ADMIN') && (
+            {user?.role === 'SALES_EXECUTIVE' && (
               <Link to="/sales/customers" className="px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors text-sm font-medium flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4" />
                 Sales
@@ -113,7 +113,7 @@ export function Navbar() {
                 <ScanLine className="w-4 h-4" /> Scanner
               </Link>
             )}
-            {(user?.role === 'SALES_EXECUTIVE' || user?.role === 'ADMIN') && (
+            {user?.role === 'SALES_EXECUTIVE' && (
               <Link to="/sales/customers" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" /> Sales
               </Link>

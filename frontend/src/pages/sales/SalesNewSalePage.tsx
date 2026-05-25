@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 import { CheckCircle2, ChevronRight, Loader2, User } from 'lucide-react';
 import { salesApi } from '../../api/sales';
 import type { TicketTier, Event } from '../../types';
@@ -96,6 +97,32 @@ export function SalesNewSalePage() {
       toast.error(err.response?.data?.error || 'Failed to save attendee names');
     } finally {
       setIsSubmittingNames(false);
+    }
+  };
+
+  const handleCompleteSaleWithConfirmation = async () => {
+    const result = await Swal.fire({
+      title: 'Confirm Payment',
+      html: `<p style="color: #fff; margin: 1rem 0; font-size: 1.1rem;">Before finalizing this ticket sale:</p>
+             <p style="color: #ccc; margin: 1rem 0;">Have you received payment from the customer?</p>
+             <p style="color: #f97316; font-weight: bold; margin-top: 1.5rem;">⚠️ After this phase, the ticket will be booked and assigned.</p>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, I received payment',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#bd2635',
+      cancelButtonColor: '#6b7280',
+      background: '#1f2937',
+      customClass: {
+        popup: 'rounded-lg',
+        title: 'text-white text-xl',
+        confirmButton: 'px-4 py-2 rounded-lg font-medium',
+        cancelButton: 'px-4 py-2 rounded-lg font-medium',
+      },
+    });
+
+    if (result.isConfirmed) {
+      completeMutation.mutate();
     }
   };
 
@@ -312,7 +339,7 @@ export function SalesNewSalePage() {
                 <button
                   className="btn-primary flex-1"
                   disabled={!selectedTierId || completeMutation.isPending}
-                  onClick={() => completeMutation.mutate()}
+                  onClick={handleCompleteSaleWithConfirmation}
                 >
                   {completeMutation.isPending ? (
                     <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Processing...</span>
