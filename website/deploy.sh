@@ -16,7 +16,8 @@ NC='\033[0m' # No Color
 # Configuration
 CONTAINER_NAME="banglafest-website"
 IMAGE_NAME="banglafest-website"
-DEPLOY_DIR="/opt/banglafest/website"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="${DEPLOY_DIR:-$SCRIPT_DIR}"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 LOG_FILE="/var/log/banglafest-website-deploy.log"
 BACKUP_TAG=$(date +%Y%m%d_%H%M%S)
