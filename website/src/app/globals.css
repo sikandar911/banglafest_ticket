@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+:root {
+  --background: #09090b;
+  --foreground: #f5f5f5;
+  --surface: #13131a;
+  --surface-strong: #191921;
+  --muted: #b6b8c3;
+  --line: rgba(255, 255, 255, 0.1);
+  --brand-red: #bd2635;
+  --brand-red-soft: #f18da7;
+  --brand-green: #115e59;
+  --brand-gold: #f59e0b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+}
+
+html {
+  background:
+    radial-gradient(circle at top, rgba(189, 38, 53, 0.28), transparent 32%),
+    radial-gradient(circle at 90% 20%, rgba(17, 94, 89, 0.24), transparent 24%),
+    linear-gradient(180deg, #09090b 0%, #101015 100%);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+}
+
+* {
+  border-color: var(--line);
+}
+
+::selection {
+  background: rgba(241, 141, 167, 0.35);
+  color: #fff;
+}
+
+a,
+button {
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease;
+}
+
+.section-shell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.26);
+}
+
+.section-label {
+  font-family: var(--font-display), sans-serif;
+  letter-spacing: 0.12em;
+}
+
+.display-title {
+  font-family: var(--font-display), sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(16, 16, 21, 0.8);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.logo-stage {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 80px rgba(0, 0, 0, 0.32);
+}
+
+.logo-stage::before {
+  content: "";
+  position: absolute;
+  inset: auto 10% -22% 10%;
+  height: 42%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 68%);
+  filter: blur(40px);
+}
+
+.sponsor-glow-pink {
+  background: rgba(241, 141, 167, 0.18);
+}
+
+.sponsor-glow-gold {
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.sponsor-glow-green {
+  background: rgba(17, 94, 89, 0.2);
+}
+
+.accent-border {
+  position: relative;
+}
+
+.accent-border::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 76px;
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--brand-red) 0%, var(--brand-gold) 58%, transparent 100%);
+}
+
+.mesh-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

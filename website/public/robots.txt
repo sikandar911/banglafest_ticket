@@ -1,0 +1,25 @@
+# SEO Configuration for Bangla Fest & Award UK
+# Allow all search engines to crawl the site
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /.next/
+Disallow: /node_modules/
+Disallow: /api/internal/
+
+# Specific rules for popular search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
+
+# Point to sitemap
+Sitemap: https://banglafest.co.uk/sitemap.xml
