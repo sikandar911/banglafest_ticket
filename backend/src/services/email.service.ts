@@ -318,7 +318,6 @@ export async function sendTicketConfirmationEmail(
         </div>
       </div>
     `,
-    attachments,
   });
 }
 
