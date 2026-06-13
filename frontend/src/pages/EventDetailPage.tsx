@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle, User, Check } from "lucide-react";
@@ -17,6 +17,33 @@ interface AppliedPromo {
   discountAmount: number;
   message: string;
 }
+
+const formatEventDateInLondon = (dateString: string) => {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/London",
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date(dateString));
+  } catch (e) {
+    return "";
+  }
+};
+
+const formatEventTimeInLondon = (dateString: string) => {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/London",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(new Date(dateString));
+  } catch (e) {
+    return "";
+  }
+};
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -270,11 +297,11 @@ export function EventDetailPage() {
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-primary-400" />
-                {format(new Date(event.startTime), "EEEE, MMMM d, yyyy")}
+                {formatEventDateInLondon(event.startTime)}
               </span>
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-gray-600" />
-                {format(new Date(event.startTime), "h:mm a")} — {format(new Date(event.endTime), "h:mm a")}
+                {formatEventTimeInLondon(event.startTime)} — {formatEventTimeInLondon(event.endTime)}
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-primary-400" />
@@ -342,7 +369,7 @@ export function EventDetailPage() {
 
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-400">
-                          {tier.availableQty} available • Max {tier.maxPerPerson} per person
+                          Max {tier.maxPerPerson} per person
                         </div>
 
                         {!isSoldOut && (

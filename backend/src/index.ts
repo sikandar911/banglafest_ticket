@@ -53,6 +53,7 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+  skip: (req) => req.path === '/api/health', // Allow unlimited health checks
 });
 app.use(limiter);
 

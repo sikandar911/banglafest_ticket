@@ -151,12 +151,9 @@ export async function sendTicketConfirmationEmail(
     promoCode?: string;
   }
 ): Promise<void> {
-  const attachments = tickets.map((t, i) => ({
-    filename: `banglafest-ticket-${t.ticketId.slice(0, 8)}-${i + 1}.pdf`,
-    content: t.pdfBuffer,
-    contentType: 'application/pdf',
-  }));
-
+  // NOTE: Removed PDF attachments to prevent email size limit errors (Hostinger 25MB limit)
+  // Users can download tickets from their account instead
+  
   const ticketCount = tickets.length;
   const eventDateStr = orderInfo.eventDate.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -280,12 +277,20 @@ export async function sendTicketConfirmationEmail(
             </div>
           </div>
 
+          <!-- Download Tickets -->
+          <div style="background: #e8f4f8; border: 1px solid #0066cc; border-radius: 6px; padding: 20px; margin: 20px 0; text-align: center;">
+            <h3 style="margin: 0 0 15px 0; color: #0066cc; font-size: 16px;">📥 Download Your Ticket${ticketCount > 1 ? 's' : ''}</h3>
+            <p style="margin: 0 0 15px 0; color: #1a1a2e;">Click the button below to download your ticket${ticketCount > 1 ? 's' : ''} as PDF:</p>
+            <a href="${process.env.FRONTEND_URL}/dashboard/tickets" style="display: inline-block; background: #0066cc; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 15px;">Download Ticket${ticketCount > 1 ? 's' : ''}</a>
+            <p style="margin: 0; color: #666; font-size: 13px;">You can also access all your tickets anytime from your account</p>
+          </div>
+
           <!-- Entry Instructions -->
           <div style="background: #e8f4f8; border: 1px solid #0066cc; border-radius: 6px; padding: 20px; margin: 20px 0;">
             <h3 style="margin: 0 0 15px 0; color: #0066cc; font-size: 16px;">✓ Entry Instructions</h3>
             <p style="margin: 0 0 12px 0; color: #1a1a2e;">You can bring this ticket in two ways:</p>
             <ol style="margin: 0 0 15px 0; padding-left: 20px; color: #1a1a2e;">
-              <li style="margin-bottom: 8px;"><strong>Printed Copy</strong> — Print this email or the attached PDF and present at entry</li>
+              <li style="margin-bottom: 8px;"><strong>Printed Copy</strong> — Download and print the PDF from your account or show this email at entry</li>
               <li><strong>Digital Copy</strong> — Show the QR code on your mobile phone at entry</li>
             </ol>
             <p style="margin: 12px 0; color: #666; font-size: 14px;"><strong>Each QR code is unique and can only be scanned once.</strong> Do not share your QR code with others.</p>
@@ -305,7 +310,7 @@ export async function sendTicketConfirmationEmail(
             <p style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">If you lose your ticket on event day, please speak to the <strong>Entry Managing Team</strong> at the venue.</p>
             <p style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">We will need your <strong>registered email address</strong> to verify your ticket in our system:</p>
             <p style="margin: 0; color: #856404; font-weight: bold; font-size: 14px;">Email: <strong>${email}</strong></p>
-          </div>
+    // attachments: Removed to prevent "message file too big" errors from SMTP server
 
           <p style="color: #666; font-size: 12px; margin-top: 30px; text-align: center;">
             See you at the festival! 🎉
