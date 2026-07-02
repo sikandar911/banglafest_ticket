@@ -70,6 +70,7 @@ export interface Order {
   isBypassed?: boolean;
   createdAt: string;
   stripeSessionId?: string;
+  promoCodeId?: string;
   tier?: TicketTier & { event: Event };
   tickets?: Ticket[];
   _count?: { tickets: number };

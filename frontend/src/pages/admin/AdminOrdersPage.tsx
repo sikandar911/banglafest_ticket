@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -8,7 +8,7 @@ import { eventsApi } from '../../api/events';
 import { PageSpinner } from '../../components/ui/Spinner';
 import { OrderStatusBadge } from '../../components/ui/Badge';
 
-const STATUSES = ['', 'PENDING', 'PAID', 'FAILED', 'REFUNDED'];
+
 
 export function AdminOrdersPage() {
   const qc = useQueryClient();
@@ -29,6 +29,19 @@ export function AdminOrdersPage() {
     queryKey: ['admin-orders', { page, status }],
     queryFn: () => adminApi.listOrders({ page, limit: 20, status: status || undefined }).then((r) => r.data),
   });
+
+  const { data: promoCodesData } = useQuery({
+    queryKey: ['admin-promo-codes'],
+    queryFn: () => adminApi.listPromoCodes().then((r) => r.data),
+  });
+
+  const promoMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (promoCodesData?.promoCodes ?? []).forEach((p: any) => {
+      map.set(p.id, p.code);
+    });
+    return map;
+  }, [promoCodesData]);
 
   const { data: usersData } = useQuery({
     queryKey: ['admin-users-bypass', userSearch],
@@ -106,13 +119,25 @@ export function AdminOrdersPage() {
           >
             <Lock className="w-4 h-4" /> Book Free Ticket
           </button>
-          <select
-            className="input w-auto text-sm"
-            value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          >
-            {STATUSES.map((s) => <option key={s} value={s}>{s || 'All Statuses'}</option>)}
-          </select>
+          <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+            {[
+              { label: 'All', value: '' },
+              { label: 'Paid', value: 'PAID' },
+              { label: 'Failed', value: 'FAILED' }
+            ].map((f) => (
+              <button
+                key={f.label}
+                onClick={() => { setStatus(f.value); setPage(1); }}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  status === f.value
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -258,6 +283,13 @@ export function AdminOrdersPage() {
                 <div className="space-y-0.5">
                   <p className="text-sm text-gray-400">{order.user?.name} · {order.user?.email}</p>
                   <p className="text-sm text-gray-500">{order.ticketTier?.name} × {order.quantity}</p>
+                  {order.status === 'PAID' && (
+                    <p className="text-xs text-gray-400">
+                      Promo: <span className="font-semibold text-gray-300">
+                        {order.promoCodeId ? (promoMap.get(order.promoCodeId) || 'Loading...') : 'No Promo'}
+                      </span>
+                    </p>
+                  )}
                   <p className="text-xs text-gray-600">{format(new Date(order.createdAt), 'MMM d, yyyy · h:mm a')}</p>
                 </div>
               </div>
