@@ -10,6 +10,6 @@ export interface PromoValidateResult {
 }
 
 export const promoApi = {
-  validate: (code: string, tierId: string) =>
-    api.post<PromoValidateResult>('/api/promo/validate', { code, tierId }),
+  validate: (code: string, tierId: string, quantity?: number) =>
+    api.post<PromoValidateResult>('/api/promo/validate', { code, tierId, quantity }),
 };

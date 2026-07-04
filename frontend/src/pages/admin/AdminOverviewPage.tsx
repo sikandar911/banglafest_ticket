@@ -20,6 +20,7 @@ export function AdminOverviewPage() {
   if (revenueQuery.isLoading) return <PageSpinner />;
 
   const rev = revenueQuery.data?.revenue;
+  const ticketBreakdown = (revenueQuery.data as any)?.ticketBreakdown;
 
   const stats = [
     {
@@ -85,6 +86,65 @@ export function AdminOverviewPage() {
             <div>
               <p className="text-2xl font-bold text-red-400">{rev.refundedOrders}</p>
               <p className="text-sm text-gray-400">Refunded</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ticketBreakdown && (
+        <div className="card">
+          <h3 className="font-semibold text-white mb-4">Ticket Sales Breakdown</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Total Tickets Card */}
+            <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+              <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Total Tickets</p>
+              <p className="text-3xl font-extrabold text-white mb-4">
+                {ticketBreakdown.totalTickets} <span className="text-xs font-normal text-gray-400">tickets</span>
+              </p>
+              <div className="space-y-2 border-t border-gray-700/50 pt-3">
+                {ticketBreakdown.salesExecTickets.tiers.map((t: any) => {
+                  const onlineMatch = ticketBreakdown.onlineTickets.tiers.find((o: any) => o.tierId === t.tierId);
+                  const combinedCount = t.count + (onlineMatch?.count ?? 0);
+                  return (
+                    <div key={t.tierId} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-300 font-medium">{t.tierName}</span>
+                      <span className="text-purple-300 font-semibold">{combinedCount}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sales Executive Sold Card */}
+            <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+              <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Sales Executive Sold</p>
+              <p className="text-3xl font-extrabold text-purple-400 mb-4">
+                {ticketBreakdown.salesExecTickets.total} <span className="text-xs font-normal text-gray-400">tickets</span>
+              </p>
+              <div className="space-y-2 border-t border-gray-700/50 pt-3">
+                {ticketBreakdown.salesExecTickets.tiers.map((t: any) => (
+                  <div key={t.tierId} className="flex justify-between items-center text-sm">
+                    <span className="text-gray-300 font-medium">{t.tierName}</span>
+                    <span className="text-purple-400 font-semibold">{t.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Online Sold Card */}
+            <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+              <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Online (Stripe) Sold</p>
+              <p className="text-3xl font-extrabold text-green-400 mb-4">
+                {ticketBreakdown.onlineTickets.total} <span className="text-xs font-normal text-gray-400">tickets</span>
+              </p>
+              <div className="space-y-2 border-t border-gray-700/50 pt-3">
+                {ticketBreakdown.onlineTickets.tiers.map((t: any) => (
+                  <div key={t.tierId} className="flex justify-between items-center text-sm">
+                    <span className="text-gray-300 font-medium">{t.tierName}</span>
+                    <span className="text-green-400 font-semibold">{t.count}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

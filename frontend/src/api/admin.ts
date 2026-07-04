@@ -1,5 +1,5 @@
 import api from './client';
-import type { Event, TicketTier, AdminUser, Order, RevenueData, PromoCode, SalesExecutiveBreakdown } from '../types';
+import type { Event, TicketTier, AdminUser, Order, RevenueData, PromoCode, SalesExecutiveBreakdown, TicketBreakdown, PromoBreakdown } from '../types';
 
 export const adminApi = {
   // Events
@@ -20,7 +20,12 @@ export const adminApi = {
     api.put<{ tier: TicketTier }>(`/api/admin/tiers/${tierId}`, data),
 
   // Revenue
-  getRevenue: () => api.get<{ revenue: RevenueData; salesExecutiveBreakdown: SalesExecutiveBreakdown[] }>('/api/admin/revenue'),
+  getRevenue: () => api.get<{
+    revenue: RevenueData;
+    salesExecutiveBreakdown: SalesExecutiveBreakdown[];
+    ticketBreakdown?: TicketBreakdown;
+    promoCodeBreakdown?: PromoBreakdown[];
+  }>('/api/admin/revenue'),
 
   // Users
   listUsers: (params?: { page?: number; limit?: number }) =>
@@ -50,10 +55,31 @@ export const adminApi = {
   listPromoCodes: () =>
     api.get<{ promoCodes: PromoCode[] }>('/api/admin/promo-codes'),
 
-  createPromoCode: (data: { code: string; influencerName: string; socialMedia?: string; discountAmount?: number | null; eventIds: string[]; startDate?: string | null; endDate?: string | null }) =>
+  createPromoCode: (data: {
+    code: string;
+    influencerName: string;
+    socialMedia?: string;
+    discountAmount?: number | null;
+    eventIds: string[];
+    startDate?: string | null;
+    endDate?: string | null;
+    isGroupPromo?: boolean;
+    minTickets?: number;
+    groupDiscounts?: Array<{ tierId: string; discountAmount: number }>;
+  }) =>
     api.post<{ promoCode: PromoCode; warnings?: string[] }>('/api/admin/promo-codes', data),
 
-  updatePromoCode: (id: string, data: { influencerName?: string; socialMedia?: string | null; discountAmount?: number | null; eventIds?: string[]; startDate?: string | null; endDate?: string | null }) =>
+  updatePromoCode: (id: string, data: {
+    influencerName?: string;
+    socialMedia?: string | null;
+    discountAmount?: number | null;
+    eventIds?: string[];
+    startDate?: string | null;
+    endDate?: string | null;
+    isGroupPromo?: boolean;
+    minTickets?: number;
+    groupDiscounts?: Array<{ tierId: string; discountAmount: number }>;
+  }) =>
     api.patch<{ promoCode: PromoCode; warnings?: string[] }>(`/api/admin/promo-codes/${id}`, data),
 
   togglePromoCode: (id: string) =>

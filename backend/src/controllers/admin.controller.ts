@@ -309,6 +309,75 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
     const salesExecRevenue = Number(salesExecResult._sum.totalAmount ?? 0);
     const onlineRevenue = totalRevenue - salesExecRevenue;
 
+    // --- Ticket Breakdown calculations ---
+    const allTiers = await prisma.ticketTier.findMany({
+      select: { id: true, name: true },
+    });
+
+    const salesExecTierCounts = await prisma.ticket.groupBy({
+      by: ['ticketTierId'],
+      where: {
+        order: { status: 'PAID', salesExecutiveId: { not: null } },
+      },
+      _count: { id: true },
+    });
+
+    const onlineTierCounts = await prisma.ticket.groupBy({
+      by: ['ticketTierId'],
+      where: {
+        order: { status: 'PAID', salesExecutiveId: null },
+      },
+      _count: { id: true },
+    });
+
+    const salesExecTiersBreakdown = allTiers.map((tier) => {
+      const match = salesExecTierCounts.find((c) => c.ticketTierId === tier.id);
+      return {
+        tierId: tier.id,
+        tierName: tier.name,
+        count: match?._count.id ?? 0,
+      };
+    });
+
+    const onlineTiersBreakdown = allTiers.map((tier) => {
+      const match = onlineTierCounts.find((c) => c.ticketTierId === tier.id);
+      return {
+        tierId: tier.id,
+        tierName: tier.name,
+        count: match?._count.id ?? 0,
+      };
+    });
+
+    const totalSalesExecTickets = salesExecTiersBreakdown.reduce((sum, t) => sum + t.count, 0);
+    const totalOnlineTickets = onlineTiersBreakdown.reduce((sum, t) => sum + t.count, 0);
+    const totalTicketsSold = totalSalesExecTickets + totalOnlineTickets;
+
+    // --- Promo Code Breakdown calculations ---
+    const promoGrouped = await prisma.order.groupBy({
+      by: ['promoCodeId'],
+      where: { status: 'PAID', promoCodeId: { not: null } },
+      _sum: { totalAmount: true, quantity: true },
+      _count: { id: true },
+    });
+
+    const promoCodeIds = promoGrouped.map((pg) => pg.promoCodeId).filter(Boolean) as string[];
+    const promoCodeDetails = await prisma.promoCode.findMany({
+      where: { id: { in: promoCodeIds } },
+      select: { id: true, code: true, influencerName: true },
+    });
+
+    const promoCodeBreakdown = promoGrouped.map((group) => {
+      const details = promoCodeDetails.find((p) => p.id === group.promoCodeId);
+      return {
+        promoCodeId: group.promoCodeId,
+        code: details?.code || 'Unknown',
+        influencerName: details?.influencerName || 'Unknown',
+        ticketsSold: group._sum.quantity ?? 0,
+        revenueGenerated: Number(group._sum.totalAmount ?? 0),
+        ordersCount: group._count.id,
+      };
+    });
+
     res.json({
       revenue: {
         totalRevenue,
@@ -324,6 +393,18 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
       },
       salesExecutiveBreakdown: enrichedSalesExecBreakdown,
       recentOrders: recentOrders.map((o) => ({ ...o, totalAmount: Number(o.totalAmount) })),
+      ticketBreakdown: {
+        totalTickets: totalTicketsSold,
+        salesExecTickets: {
+          total: totalSalesExecTickets,
+          tiers: salesExecTiersBreakdown,
+        },
+        onlineTickets: {
+          total: totalOnlineTickets,
+          tiers: onlineTiersBreakdown,
+        },
+      },
+      promoCodeBreakdown,
     });
   } catch (err) {
     next(err);
@@ -796,6 +877,11 @@ export async function listPromoCodes(_req: Request, res: Response, next: NextFun
             event: { select: { id: true, title: true } },
           },
         },
+        groupPromos: {
+          include: {
+            ticketTier: { select: { id: true, name: true, price: true } },
+          },
+        },
         _count: { select: { orders: true } },
       },
     });
@@ -809,7 +895,7 @@ export async function listPromoCodes(_req: Request, res: Response, next: NextFun
 // POST /api/admin/promo-codes
 export async function createPromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { code, influencerName, socialMedia, discountAmount, eventIds, startDate, endDate } = req.body;
+    const { code, influencerName, socialMedia, discountAmount, eventIds, startDate, endDate, isGroupPromo, minTickets, groupDiscounts } = req.body;
 
     if (!code || !String(code).trim()) {
       res.status(400).json({ error: 'Promo code is required.' });
@@ -859,7 +945,7 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
         code: normalizedCode,
         influencerName: String(influencerName).trim(),
         socialMedia: socialMedia ? String(socialMedia).trim() : null,
-        discountAmount: parsedDiscount,
+        discountAmount: isGroupPromo ? null : parsedDiscount,
         startDate: parsedStart,
         endDate: parsedEnd,
         events: {
@@ -875,10 +961,52 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
       },
     });
 
+    if (isGroupPromo && Array.isArray(groupDiscounts)) {
+      await prisma.groupPromo.createMany({
+        data: groupDiscounts.map((gd) => ({
+          promoCodeId: promoCode.id,
+          ticketTierId: gd.tierId,
+          discountAmount: Number(gd.discountAmount),
+          minTickets: minTickets ? parseInt(minTickets) : 10,
+        })),
+      });
+    }
+
+    // Re-fetch to return complete information including Group Promo tiers
+    const enrichedPromoCode = await prisma.promoCode.findUnique({
+      where: { id: promoCode.id },
+      include: {
+        events: {
+          include: {
+            event: { select: { id: true, title: true } },
+          },
+        },
+        groupPromos: {
+          include: {
+            ticketTier: { select: { id: true, name: true, price: true } },
+          },
+        },
+        _count: { select: { orders: true } },
+      },
+    });
+
     // Warn if effective discount >= any tier price (tickets would be free/over-discounted)
     const warnings: string[] = [];
 
-    if (parsedDiscount !== null && parsedDiscount > 0) {
+    if (isGroupPromo && Array.isArray(groupDiscounts)) {
+      const tiers = await prisma.ticketTier.findMany({
+        where: { id: { in: groupDiscounts.map((gd) => gd.tierId) } },
+        select: { id: true, name: true, price: true, event: { select: { title: true } } },
+      });
+      for (const gd of groupDiscounts) {
+        const tier = tiers.find((t) => t.id === gd.tierId);
+        if (tier && Number(gd.discountAmount) >= Number(tier.price)) {
+          warnings.push(
+            `"${tier.event.title}" → Tier "${tier.name}": group promo discount £${Number(gd.discountAmount).toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
+          );
+        }
+      }
+    } else if (parsedDiscount !== null && parsedDiscount > 0) {
       const tiers = await prisma.ticketTier.findMany({
         where: { eventId: { in: eventIds as string[] } },
         select: { name: true, price: true, event: { select: { title: true } } },
@@ -905,7 +1033,7 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
       }
     }
 
-    res.status(201).json({ promoCode, ...(warnings.length > 0 && { warnings }) });
+    res.status(201).json({ promoCode: enrichedPromoCode, ...(warnings.length > 0 && { warnings }) });
   } catch (err) {
     next(err);
   }
@@ -915,7 +1043,7 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
 export async function updatePromoCode(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const { influencerName, socialMedia, discountAmount, eventIds, startDate, endDate } = req.body;
+    const { influencerName, socialMedia, discountAmount, eventIds, startDate, endDate, isGroupPromo, minTickets, groupDiscounts } = req.body;
 
     const existing = await prisma.promoCode.findUnique({ where: { id } });
     if (!existing) {
@@ -956,26 +1084,63 @@ export async function updatePromoCode(req: Request, res: Response, next: NextFun
       });
     }
 
+    // Update GroupPromo records
+    if (isGroupPromo !== undefined) {
+      await prisma.groupPromo.deleteMany({ where: { promoCodeId: id } });
+      if (isGroupPromo && Array.isArray(groupDiscounts)) {
+        await prisma.groupPromo.createMany({
+          data: groupDiscounts.map((gd) => ({
+            promoCodeId: id,
+            ticketTierId: gd.tierId,
+            discountAmount: Number(gd.discountAmount),
+            minTickets: minTickets ? parseInt(minTickets) : 10,
+          })),
+        });
+      }
+    }
+
     const updated = await prisma.promoCode.update({
       where: { id },
       data: {
         ...(influencerName !== undefined && { influencerName: String(influencerName).trim() }),
-        // undefined = field not sent (don't touch); null or "" = clear it; string = set it
         ...(socialMedia !== undefined && { socialMedia: socialMedia ? String(socialMedia).trim() : null }),
-        discountAmount: parsedDiscount,
+        discountAmount: isGroupPromo ? null : (discountAmount !== undefined ? parsedDiscount : undefined),
         startDate: parsedStart,
         endDate: parsedEnd,
       },
+    });
+
+    // Re-fetch to return complete information including Group Promo tiers
+    const enrichedPromoCode = await prisma.promoCode.findUnique({
+      where: { id: updated.id },
       include: {
         events: { include: { event: { select: { id: true, title: true } } } },
+        groupPromos: {
+          include: {
+            ticketTier: { select: { id: true, name: true, price: true } },
+          },
+        },
         _count: { select: { orders: true } },
       },
     });
 
     // Warn if discount >= tier price
     const warnings: string[] = [];
-    if (parsedDiscount !== null && parsedDiscount > 0) {
-      const ids = Array.isArray(eventIds) ? (eventIds as string[]) : updated.events.map((e) => e.eventId);
+    if (isGroupPromo && Array.isArray(groupDiscounts)) {
+      const tiers = await prisma.ticketTier.findMany({
+        where: { id: { in: groupDiscounts.map((gd) => gd.tierId) } },
+        select: { id: true, name: true, price: true, event: { select: { title: true } } },
+      });
+      for (const gd of groupDiscounts) {
+        const tier = tiers.find((t) => t.id === gd.tierId);
+        if (tier && Number(gd.discountAmount) >= Number(tier.price)) {
+          warnings.push(
+            `"${tier.event.title}" → Tier "${tier.name}": group promo discount £${Number(gd.discountAmount).toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
+          );
+        }
+      }
+    } else if (parsedDiscount !== null && parsedDiscount > 0) {
+      const ids = Array.isArray(eventIds) ? (eventIds as string[]) : enrichedPromoCode!.events.map((e) => e.eventId);
       const tiers = await prisma.ticketTier.findMany({
         where: { eventId: { in: ids } },
         select: { name: true, price: true, event: { select: { title: true } } },
@@ -989,7 +1154,7 @@ export async function updatePromoCode(req: Request, res: Response, next: NextFun
       }
     }
 
-    res.json({ promoCode: updated, ...(warnings.length > 0 && { warnings }) });
+    res.json({ promoCode: enrichedPromoCode, ...(warnings.length > 0 && { warnings }) });
   } catch (err) {
     next(err);
   }

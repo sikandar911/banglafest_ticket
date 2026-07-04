@@ -19,6 +19,9 @@ interface PromoForm {
   eventIds: string[];
   startDate: string;
   endDate: string;
+  isGroupPromo: boolean;
+  minTickets: string;
+  groupDiscounts: Record<string, string>;
 }
 
 const EMPTY_FORM: PromoForm = {
@@ -29,6 +32,9 @@ const EMPTY_FORM: PromoForm = {
   eventIds: [],
   startDate: '',
   endDate: '',
+  isGroupPromo: false,
+  minTickets: '10',
+  groupDiscounts: {},
 };
 
 function generateCode(): string {
@@ -170,27 +176,106 @@ function PromoFormFields({
         />
       </div>
 
-      {/* Discount Amount */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-300">
-          Discount Amount (£) <span className="text-gray-500 font-normal">(per ticket)</span>
+      {/* Group Promo Toggle */}
+      <div className="flex items-center gap-2 py-1">
+        <input
+          type="checkbox"
+          id="isGroupPromo"
+          checked={form.isGroupPromo}
+          onChange={(e) => setForm((f) => ({ ...f, isGroupPromo: e.target.checked }))}
+          className="h-4 w-4 rounded border-gray-500 bg-gray-600 text-purple-600 focus:ring-purple-500"
+        />
+        <label htmlFor="isGroupPromo" className="text-sm font-medium text-gray-300 cursor-pointer">
+          Is Group Promo (Valid for bulk 10+ tickets)
         </label>
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">£</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            className="w-full rounded-lg border border-gray-600 bg-gray-700 py-2 pl-7 pr-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            placeholder="e.g. 10.00"
-            value={form.discountAmount}
-            onChange={(e) => setForm((f) => ({ ...f, discountAmount: e.target.value }))}
-          />
-        </div>
-        <p className="mt-1 text-xs text-gray-500">
-          Leave blank to use the per-tier discount set on the Events page.
-        </p>
       </div>
+
+      {form.isGroupPromo ? (
+        <div className="space-y-3 rounded-lg border border-purple-900/60 bg-purple-950/10 p-3 ring-1 ring-purple-900/30">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-purple-300">
+              Minimum Tickets Required <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="number"
+              min="2"
+              className="w-full rounded-lg border border-gray-600 bg-gray-700 px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              value={form.minTickets}
+              onChange={(e) => setForm((f) => ({ ...f, minTickets: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-xs font-medium text-purple-300">
+              Tier-Specific Discounts (£)
+            </label>
+            {form.eventIds.length === 0 ? (
+              <p className="text-xs text-gray-500 italic">Select at least one event below to configure tier discounts.</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto divide-y divide-gray-700/60 pr-1">
+                {form.eventIds.map((eventId) => {
+                  const ev = events.find((e) => e.id === eventId);
+                  if (!ev) return null;
+                  return (
+                    <div key={ev.id} className="pt-2 first:pt-0">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">{ev.title}</p>
+                      <div className="space-y-1.5">
+                        {ev.ticketTiers.map((tier) => (
+                          <div key={tier.id} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="text-gray-300 flex-1 truncate">{tier.name} (£{Number(tier.price).toFixed(2)})</span>
+                            <div className="relative w-28">
+                              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">£</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                className="w-full rounded border border-gray-600 bg-gray-700 py-1 pl-5 pr-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                value={form.groupDiscounts[tier.id] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setForm((f) => ({
+                                    ...f,
+                                    groupDiscounts: {
+                                      ...f.groupDiscounts,
+                                      [tier.id]: val,
+                                    },
+                                  }));
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Discount Amount */
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-300">
+            Discount Amount (£) <span className="text-gray-500 font-normal">(per ticket)</span>
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">£</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full rounded-lg border border-gray-600 bg-gray-700 py-2 pl-7 pr-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="e.g. 10.00"
+              value={form.discountAmount}
+              onChange={(e) => setForm((f) => ({ ...f, discountAmount: e.target.value }))}
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            Leave blank to use the per-tier discount set on the Events page.
+          </p>
+        </div>
+      )}
 
       {/* Validity Period */}
       <div>
@@ -274,6 +359,11 @@ function EditModal({
     eventIds: pc.events?.map((e) => e.event.id) ?? [],
     startDate: pc.startDate ? new Date(pc.startDate).toISOString().slice(0, 16) : '',
     endDate:   pc.endDate   ? new Date(pc.endDate).toISOString().slice(0, 16)   : '',
+    isGroupPromo: pc.groupPromos !== undefined && pc.groupPromos.length > 0,
+    minTickets: pc.groupPromos && pc.groupPromos.length > 0 ? String(pc.groupPromos[0].minTickets) : '10',
+    groupDiscounts: pc.groupPromos && pc.groupPromos.length > 0
+      ? pc.groupPromos.reduce((acc, gp) => ({ ...acc, [gp.ticketTierId]: String(gp.discountAmount) }), {})
+      : {},
   });
 
   const updateMutation = useMutation({
@@ -281,10 +371,17 @@ function EditModal({
       adminApi.updatePromoCode(pc.id, {
         influencerName: form.influencerName.trim(),
         socialMedia: form.socialMedia.trim() || null,
-        discountAmount: form.discountAmount !== '' ? Number(form.discountAmount) : null,
+        discountAmount: form.isGroupPromo ? null : (form.discountAmount !== '' ? Number(form.discountAmount) : null),
         eventIds: form.eventIds,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
+        isGroupPromo: form.isGroupPromo,
+        minTickets: form.isGroupPromo ? parseInt(form.minTickets) : 10,
+        groupDiscounts: form.isGroupPromo
+          ? Object.entries(form.groupDiscounts)
+              .filter(([_, amt]) => amt !== '')
+              .map(([tierId, amt]) => ({ tierId, discountAmount: Number(amt) }))
+          : [],
       }),
     onSuccess: (res) => {
       toast.success('Promo code updated!');
@@ -381,10 +478,17 @@ export default function AdminPromoCodesPage() {
         code: form.code.trim().toUpperCase(),
         influencerName: form.influencerName.trim(),
         socialMedia: form.socialMedia.trim() || undefined,
-        discountAmount: form.discountAmount !== '' ? Number(form.discountAmount) : null,
+        discountAmount: form.isGroupPromo ? null : (form.discountAmount !== '' ? Number(form.discountAmount) : null),
         eventIds: form.eventIds,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
+        isGroupPromo: form.isGroupPromo,
+        minTickets: form.isGroupPromo ? parseInt(form.minTickets) : 10,
+        groupDiscounts: form.isGroupPromo
+          ? Object.entries(form.groupDiscounts)
+              .filter(([_, amt]) => amt !== '')
+              .map(([tierId, amt]) => ({ tierId, discountAmount: Number(amt) }))
+          : [],
       }),
     onSuccess: (res) => {
       toast.success('Promo code created!');
@@ -552,7 +656,16 @@ export default function AdminPromoCodesPage() {
 
                   {/* Discount */}
                   <td className="px-4 py-3 text-center">
-                    {pc.discountAmount != null ? (
+                    {pc.groupPromos && pc.groupPromos.length > 0 ? (
+                      <div className="flex flex-col gap-0.5 items-center">
+                        <span className="rounded bg-purple-900/60 px-1.5 py-0.5 text-[9px] font-bold text-purple-300 uppercase tracking-wide ring-1 ring-purple-700">
+                          Group ({pc.groupPromos[0].minTickets}+)
+                        </span>
+                        <div className="text-[10px] text-gray-400 max-w-[120px] truncate" title={pc.groupPromos.map(gp => `${gp.ticketTier?.name || 'Tier'}: £${Number(gp.discountAmount).toFixed(0)}`).join(', ')}>
+                          {pc.groupPromos.map(gp => `${gp.ticketTier?.name || 'Tier'}: £${Number(gp.discountAmount).toFixed(0)}`).join(', ')}
+                        </div>
+                      </div>
+                    ) : pc.discountAmount != null ? (
                       <span className="font-semibold text-green-400">
                         £{Number(pc.discountAmount).toFixed(2)}
                       </span>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle, User, Check } from "lucide-react";
@@ -96,7 +96,8 @@ export function EventDetailPage() {
     if (!tierId || !promoInput.trim()) return;
     setIsValidatingPromo(true);
     try {
-      const { data } = await promoApi.validate(promoInput.trim(), tierId);
+      const qty = selectedTiers[tierId] || 1;
+      const { data } = await promoApi.validate(promoInput.trim(), tierId, qty);
       if (data.valid && data.discountAmount !== undefined) {
         setAppliedPromo({
           promoCodeId: data.promoCodeId!,

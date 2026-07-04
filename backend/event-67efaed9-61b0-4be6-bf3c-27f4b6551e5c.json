@@ -1,0 +1,262 @@
+{
+  "exportedAt": "2026-07-04T05:24:32.350Z",
+  "databaseUrl": "75.119.149.137:5432/ticketbanglafest?schema=public",
+  "creator": {
+    "id": "0065a5bf-52e0-4d1c-ac73-e7aee67e9bcf",
+    "name": "Admin User",
+    "email": "admin@banglafest.com",
+    "passwordHash": "$2a$10$GZjX.ACdHynLI/jMKw8E7Or.ACRjWN3m6IHqzLC99otCV68SUzJ7K",
+    "isVerified": true,
+    "role": "ADMIN",
+    "createdAt": "2026-05-18T16:01:56.716Z",
+    "otpCode": null,
+    "otpExpiresAt": null,
+    "resetToken": null,
+    "resetTokenExpiresAt": null,
+    "refreshToken": "$2a$10$/mG0ZdviJRZdRw26110rdehgXFp.cs1KHWrDoCW9brohn3PeEoGoq"
+  },
+  "event": {
+    "id": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c",
+    "title": "Banglafest & Award UK 2026",
+    "description": "",
+    "startTime": "2026-07-19T13:00:00.000Z",
+    "endTime": "2026-07-19T23:30:00.000Z",
+    "location": "The Royal Regency, E12 6TH",
+    "createdBy": "0065a5bf-52e0-4d1c-ac73-e7aee67e9bcf",
+    "createdAt": "2026-05-23T13:55:23.155Z",
+    "imageUrl": "https://res.cloudinary.com/drgot7znf/image/upload/v1780412092/banglafest_cover_2_ovf7yy.jpg",
+    "performers": "[{\"name\":\"The Warfaze\",\"ticketDisplayName\":\"The Warfaze\"},{\"name\":\"Xefer\",\"ticketDisplayName\":\"Xefer\"},{\"name\":\"Muza\",\"ticketDisplayName\":\"Muza\"},{\"name\":\"Bappy\",\"ticketDisplayName\":\"Bappy\"},{\"name\":\"Rafsan (Presenter)\",\"ticketDisplayName\":\"Rafsan (Presenter)\"},{\"name\":\"Rinty (Presenter)\",\"ticketDisplayName\":\"Rinty (Presenter)\"}]",
+    "specialAdditions": "[{\"name\":\"Fifa 2026\",\"description\":\"\",\"ticketDisplayText\":\"FIFA World Cup 2026 Final Match Live Streaming\"}]"
+  },
+  "ticketTiers": [
+    {
+      "id": "7f15930b-a951-4b31-bbca-b99726e62475",
+      "name": "Premium Ground Floor",
+      "price": "30",
+      "totalCapacity": 800,
+      "availableQty": 563,
+      "description": null,
+      "features": null,
+      "maxPerPerson": 50,
+      "promoDiscountAmount": "5"
+    },
+    {
+      "id": "f449c0dc-53b4-4af7-ab14-072f0ac96aa7",
+      "name": "General First Floor",
+      "price": "25",
+      "totalCapacity": 400,
+      "availableQty": 321,
+      "description": null,
+      "features": null,
+      "maxPerPerson": 50,
+      "promoDiscountAmount": "5"
+    },
+    {
+      "id": "f7836605-93a2-44d4-8360-66a8ac62eb51",
+      "name": "VIP",
+      "price": "80",
+      "totalCapacity": 150,
+      "availableQty": 109,
+      "description": null,
+      "features": null,
+      "maxPerPerson": 50,
+      "promoDiscountAmount": "10"
+    }
+  ],
+  "promoCodes": [
+    {
+      "id": "eef90ef7-c5e6-4b1c-b206-71b5c1d1a273",
+      "code": "NK",
+      "influencerName": "NISHATKHUSBU",
+      "socialMedia": "https://www.facebook.com/beauty.inm",
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 6,
+      "startDate": "2026-05-24T00:03:00.000Z",
+      "endDate": "2026-07-20T12:03:00.000Z",
+      "createdAt": "2026-05-24T11:04:01.597Z"
+    },
+    {
+      "id": "d8cd86cc-02d3-4e6d-9609-5bbb85acc789",
+      "code": "AIUBIAN",
+      "influencerName": "Student",
+      "socialMedia": null,
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 0,
+      "startDate": "2026-06-08T17:04:00.000Z",
+      "endDate": "2026-07-19T13:04:00.000Z",
+      "createdAt": "2026-06-08T16:05:11.496Z"
+    },
+    {
+      "id": "d7206f6b-f5c8-4373-9bc5-033d9cdc8d8e",
+      "code": "RINTYLOVE",
+      "influencerName": "Sama mehjabin rinty",
+      "socialMedia": "https://www.facebook.com/share/1HFQ38A1cQ/",
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 2,
+      "startDate": "2026-06-17T19:49:00.000Z",
+      "endDate": "2026-07-21T19:45:00.000Z",
+      "createdAt": "2026-06-18T13:49:25.431Z"
+    },
+    {
+      "id": "335adb97-80a0-40f9-a3c5-3debad353f02",
+      "code": "RIKA",
+      "influencerName": "Rika - Imran vai",
+      "socialMedia": null,
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 2,
+      "startDate": "2026-06-17T22:58:00.000Z",
+      "endDate": "2026-07-21T22:56:00.000Z",
+      "createdAt": "2026-06-18T16:57:32.157Z"
+    },
+    {
+      "id": "cc1074be-8de1-4f37-9caf-eacb98c9d6a7",
+      "code": "MMVLOG",
+      "influencerName": "Marjan",
+      "socialMedia": null,
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 2,
+      "startDate": "2026-06-18T20:09:00.000Z",
+      "endDate": "2026-07-19T20:00:00.000Z",
+      "createdAt": "2026-06-17T21:02:59.462Z"
+    },
+    {
+      "id": "e2c4996b-ce97-4f42-801b-a8d2bf2a4939",
+      "code": "MAK4U",
+      "influencerName": "Anamul",
+      "socialMedia": "https://www.facebook.com/makf0ry0u?locale=en_GB",
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 12,
+      "startDate": "2026-06-18T20:43:00.000Z",
+      "endDate": "2026-07-19T22:45:00.000Z",
+      "createdAt": "2026-06-18T19:44:49.065Z"
+    },
+    {
+      "id": "54e812f7-a1ee-4aec-9a96-5d8ee4d94163",
+      "code": "AFROZA",
+      "influencerName": "Afroza",
+      "socialMedia": null,
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 0,
+      "startDate": "2026-06-17T23:50:00.000Z",
+      "endDate": "2026-07-21T23:50:00.000Z",
+      "createdAt": "2026-06-18T17:50:19.231Z"
+    },
+    {
+      "id": "3f58fed1-3709-458f-9620-1296b65f906c",
+      "code": "SABABA",
+      "influencerName": "Sababa",
+      "socialMedia": null,
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 11,
+      "startDate": "2026-06-17T22:59:00.000Z",
+      "endDate": "2026-07-21T22:59:00.000Z",
+      "createdAt": "2026-06-18T16:59:20.279Z"
+    },
+    {
+      "id": "60711170-e847-4ae4-8ace-4824b189ade3",
+      "code": "TANZINA",
+      "influencerName": "Tanzina's Moments",
+      "socialMedia": "https://www.facebook.com/Tanzinasmoments",
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 9,
+      "startDate": "2026-06-19T20:31:00.000Z",
+      "endDate": "2026-07-22T20:31:00.000Z",
+      "createdAt": "2026-06-20T14:31:37.997Z"
+    },
+    {
+      "id": "409f3a35-872a-4374-bba0-0dc5c47cdc1c",
+      "code": "IC",
+      "influencerName": "Imran Chaudhary",
+      "socialMedia": null,
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 0,
+      "startDate": "2026-06-24T23:01:00.000Z",
+      "endDate": "2026-07-21T23:01:00.000Z",
+      "createdAt": "2026-06-25T17:02:12.310Z"
+    },
+    {
+      "id": "70694fcb-8e89-4b68-ace1-01c7609ed181",
+      "code": "HAWA",
+      "influencerName": "Hawa",
+      "socialMedia": null,
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 0,
+      "startDate": "2026-06-30T16:06:00.000Z",
+      "endDate": "2026-07-21T16:06:00.000Z",
+      "createdAt": "2026-07-01T10:09:00.534Z"
+    },
+    {
+      "id": "6078dc8e-3b51-4358-b767-0a0917806915",
+      "code": "RIAZ",
+      "influencerName": "Riaz Md Junayet",
+      "socialMedia": "https://www.facebook.com/riaz007",
+      "discountAmount": null,
+      "isActive": true,
+      "usageCount": 3,
+      "startDate": "2026-06-25T16:08:00.000Z",
+      "endDate": "2026-07-21T16:08:00.000Z",
+      "createdAt": "2026-07-02T10:08:44.095Z"
+    }
+  ],
+  "promoCodeEventLinks": [
+    {
+      "promoCodeId": "eef90ef7-c5e6-4b1c-b206-71b5c1d1a273",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "d8cd86cc-02d3-4e6d-9609-5bbb85acc789",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "d7206f6b-f5c8-4373-9bc5-033d9cdc8d8e",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "335adb97-80a0-40f9-a3c5-3debad353f02",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "cc1074be-8de1-4f37-9caf-eacb98c9d6a7",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "e2c4996b-ce97-4f42-801b-a8d2bf2a4939",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "54e812f7-a1ee-4aec-9a96-5d8ee4d94163",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "3f58fed1-3709-458f-9620-1296b65f906c",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "60711170-e847-4ae4-8ace-4824b189ade3",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "409f3a35-872a-4374-bba0-0dc5c47cdc1c",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "70694fcb-8e89-4b68-ace1-01c7609ed181",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    },
+    {
+      "promoCodeId": "6078dc8e-3b51-4358-b767-0a0917806915",
+      "eventId": "67efaed9-61b0-4be6-bf3c-27f4b6551e5c"
+    }
+  ]
+}

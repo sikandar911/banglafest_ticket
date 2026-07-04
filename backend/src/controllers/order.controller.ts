@@ -36,22 +36,52 @@ export async function createOrder(req: AuthRequest, res: Response, next: NextFun
         },
       });
 
-      if (found && found.isActive) {
-        const now = new Date();
-        const withinDates =
-          (!found.startDate || now >= found.startDate) &&
-          (!found.endDate || now <= found.endDate);
-        const tierInPromo = found.events.some((pe) => pe.event.ticketTiers.length > 0);
-        if (tierInPromo && withinDates) {
-          promoCodeRecord = { id: found.id };
-          if (found.discountAmount != null) {
-            discountPerTicket = Number(found.discountAmount);
-          } else {
-            const tier = await prisma.ticketTier.findUnique({ where: { id: tierId } });
-            discountPerTicket = tier?.promoDiscountAmount ? Number(tier.promoDiscountAmount) : 0;
-          }
+      if (!found || !found.isActive) {
+        res.status(400).json({ error: 'Invalid or inactive promo code.' });
+        return;
+      }
+
+      const now = new Date();
+      const withinDates =
+        (!found.startDate || now >= found.startDate) &&
+        (!found.endDate || now <= found.endDate);
+
+      if (!withinDates) {
+        res.status(400).json({ error: 'This promo code has expired or is not yet active.' });
+        return;
+      }
+
+      const tierInPromo = found.events.some((pe) => pe.event.ticketTiers.length > 0);
+      if (!tierInPromo) {
+        res.status(400).json({ error: 'This promo code is not valid for this event/tier.' });
+        return;
+      }
+
+      // Check Group Promo
+      const groupPromos = await prisma.groupPromo.findMany({
+        where: { promoCodeId: found.id },
+      });
+
+      if (groupPromos.length > 0) {
+        const minTickets = groupPromos[0].minTickets;
+        if (quantity < minTickets) {
+          res.status(400).json({
+            error: `This promo code is only valid for purchases of ${minTickets} or more tickets.`,
+          });
+          return;
+        }
+        const matchedPromo = groupPromos.find((gp) => gp.ticketTierId === tierId);
+        discountPerTicket = matchedPromo ? Number(matchedPromo.discountAmount) : 0;
+      } else {
+        if (found.discountAmount != null) {
+          discountPerTicket = Number(found.discountAmount);
+        } else {
+          const tier = await prisma.ticketTier.findUnique({ where: { id: tierId } });
+          discountPerTicket = tier?.promoDiscountAmount ? Number(tier.promoDiscountAmount) : 0;
         }
       }
+
+      promoCodeRecord = { id: found.id };
     }
 
     const result = await prisma.$transaction(async (tx) => {
