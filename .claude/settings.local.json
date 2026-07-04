@@ -40,7 +40,27 @@
       "Bash(git show *)",
       "WebFetch(domain:www.canva.com)",
       "Bash(npx prisma *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(curl -s \"http://localhost:5000/api/admin/users?page=1&limit=1\" -H \"Authorization: Bearer test\")",
+      "Bash(Remove-Item *)",
+      "Bash(New-Item -ItemType Directory -Force \"E:\\\\MERN\\\\banglafest_ticket\\\\backend\\\\prisma\\\\migrations\\\\20260519100000_add_promo_code_dates\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"done\")",
+      "PowerShell(New-Item *)",
+      "PowerShell(cd \"E:\\\\MERN\\\\banglafest_ticket\\\\backend\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"npm run dev\" -WindowStyle Normal)",
+      "PowerShell(cd \"E:\\\\MERN\\\\banglafest_ticket\\\\frontend\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"npm run dev\" -WindowStyle Normal)",
+      "PowerShell(cd \"E:\\\\MERN\\\\banglafest_ticket\\\\backend\"; Start-Process powershell -ArgumentList \"-NoExit\",\"-Command\",\"npm run dev\" -WindowStyle Normal; cd \"E:\\\\MERN\\\\banglafest_ticket\\\\frontend\"; Start-Process powershell -ArgumentList \"-NoExit\",\"-Command\",\"npm run dev\" -WindowStyle Normal; Write-Host \"servers starting\")",
+      "Bash(curl -s http://localhost:5000/api/health)",
+      "Bash(curl -s http://localhost:5000/api/promo/validate -X POST -H \"Content-Type: application/json\" -d '{\"code\":\"TEST\",\"tierId\":\"test\"}')",
+      "Bash(curl -s http://localhost:5000/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"admin@banglafest.com\",\"password\":\"Admin@12345\"}')",
+      "PowerShell($login = Invoke-RestMethod -Uri \"http://localhost:5000/api/auth/login\" -Method POST -ContentType \"application/json\" -Body '{\"email\":\"admin@banglafest.com\",\"password\":\"Admin@12345\"}'; $global:TOKEN = $login.accessToken; Write-Host \"Token obtained: $\\($global:TOKEN.Substring\\(0,20\\)\\)...\")",
+      "PowerShell(cd \"E:\\\\MERN\\\\banglafest_ticket\\\\backend\"; Start-Process powershell -ArgumentList \"-NoExit\",\"-Command\",\"npm run dev\" -WindowStyle Normal; Start-Sleep -Seconds 5; Write-Host \"backend starting...\")",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:5000/api/promo/validate -H 'Content-Type: application/json' -d '{\"code\":\"EXPIRED99\",\"tierId\":\"d8d0e06f-9ac1-4a4c-b67b-40b55a21a70a\"}')",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:5000/api/promo/validate -H 'Content-Type: application/json' -d '{\"code\":\"SUMMER25\",\"tierId\":\"wrong-tier-id\"}')",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:5000/api/promo/validate -H 'Content-Type: application/json' -d '{\"code\":\"FAKECODE\",\"tierId\":\"d8d0e06f-9ac1-4a4c-b67b-40b55a21a70a\"}')",
+      "PowerShell(cd \"E:\\\\MERN\\\\banglafest_ticket\\\\frontend\"; Start-Process powershell -ArgumentList \"-NoExit\",\"-Command\",\"npm run dev\" -WindowStyle Normal; Write-Host \"frontend starting\")",
+      "Bash(node *)"
     ]
   }
 }

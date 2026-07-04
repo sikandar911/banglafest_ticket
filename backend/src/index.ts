@@ -47,14 +47,24 @@ app.use(
 );
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+// Loose global cap — protects against floods without blocking normal browsing
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+  skip: (req) => req.path === '/api/health', // Allow unlimited health checks
 });
-app.use(limiter);
+// Strict limit on auth endpoints to slow brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts, please try again later.' },
+});
+app.use(globalLimiter);
 
 // ─── Stripe webhook MUST be before express.json() (needs raw body) ────────────
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
@@ -74,7 +84,7 @@ app.get('/api/swagger.json', (_req, res) => {
   res.send(swaggerSpec);
 });
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/stripe', stripeRoutes);
