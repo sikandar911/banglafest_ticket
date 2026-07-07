@@ -63,6 +63,7 @@ model TicketTier {
   orders              Order[]     @relation("OrderTier")
   event               Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   tickets             Ticket[]
+  groupPromos         GroupPromo[]
 
   @@map("ticket_tiers")
 }
@@ -121,8 +122,9 @@ model PromoCode {
   createdAt      DateTime  @default(now()) @map("created_at")
 
   // Relations
-  events PromoCodeEvent[]
-  orders Order[]
+  events      PromoCodeEvent[]
+  orders      Order[]
+  groupPromos GroupPromo[]
 
   @@map("promo_codes")
 }
@@ -180,3 +182,18 @@ enum TicketStatus {
   CHECKED_IN
   CANCELLED
 }
+
+model GroupPromo {
+  id             String      @id @default(uuid())
+  promoCodeId    String      @map("promo_code_id")
+  ticketTierId   String      @map("ticket_tier_id")
+  discountAmount Decimal     @map("discount_amount") @db.Decimal(10, 2)
+  minTickets     Int         @default(10) @map("min_tickets")
+
+  promoCode      PromoCode   @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  ticketTier     TicketTier  @relation(fields: [ticketTierId], references: [id], onDelete: Cascade)
+
+  @@unique([promoCodeId, ticketTierId])
+  @@map("group_promos")
+}
+

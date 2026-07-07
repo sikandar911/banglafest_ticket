@@ -123,7 +123,8 @@ export function EventDetailPage() {
     if (!tierId || !promoInput.trim()) return;
     setIsValidatingPromo(true);
     try {
-      const { data } = await promoApi.validate(promoInput.trim(), tierId);
+      const qty = selectedTiers[tierId] || 1;
+      const { data } = await promoApi.validate(promoInput.trim(), tierId, qty);
       if (data.valid && data.discountAmount !== undefined) {
         setAppliedPromo({
           promoCodeId: data.promoCodeId!,

@@ -95,6 +95,33 @@ export interface Ticket {
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
+export interface TierCount {
+  tierId: string;
+  tierName: string;
+  count: number;
+}
+
+export interface TicketBreakdown {
+  totalTickets: number;
+  salesExecTickets: {
+    total: number;
+    tiers: TierCount[];
+  };
+  onlineTickets: {
+    total: number;
+    tiers: TierCount[];
+  };
+}
+
+export interface PromoBreakdown {
+  promoCodeId: string;
+  code: string;
+  influencerName: string;
+  ticketsSold: number;
+  revenueGenerated: number;
+  ordersCount: number;
+}
+
 export interface RevenueData {
   totalRevenue: number;
   netRevenue: number;
@@ -128,6 +155,15 @@ export interface AdminUser {
 }
 
 // ─── Promo Codes ─────────────────────────────────────────────────────────────
+export interface GroupPromo {
+  id: string;
+  promoCodeId: string;
+  ticketTierId: string;
+  discountAmount: number;
+  minTickets: number;
+  ticketTier?: TicketTier;
+}
+
 export interface PromoCode {
   id: string;
   code: string;
@@ -142,6 +178,7 @@ export interface PromoCode {
   events?: Array<{
     event: { id: string; title: string };
   }>;
+  groupPromos?: GroupPromo[];
   _count?: { orders: number };
 }
 

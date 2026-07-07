@@ -60,13 +60,33 @@ export async function validatePromoCode(req: Request, res: Response, next: NextF
       return;
     }
 
-    // Promo-level discount takes precedence; tier-level is the fallback
-    const discountAmount =
-      promoCode.discountAmount != null
-        ? Number(promoCode.discountAmount)
-        : tier.promoDiscountAmount
-          ? Number(tier.promoDiscountAmount)
-          : 0;
+    // Check if there are group promos associated with this promo code
+    const groupPromos = await prisma.groupPromo.findMany({
+      where: { promoCodeId: promoCode.id },
+    });
+
+    let discountAmount = 0;
+    if (groupPromos.length > 0) {
+      const qty = Number(req.body.quantity) || 1;
+      const minTickets = groupPromos[0].minTickets;
+      if (qty < minTickets) {
+        res.status(400).json({
+          valid: false,
+          message: `This promo code is only valid for purchases of ${minTickets} or more tickets.`,
+        });
+        return;
+      }
+      const matchedPromo = groupPromos.find((gp) => gp.ticketTierId === tierId);
+      discountAmount = matchedPromo ? Number(matchedPromo.discountAmount) : 0;
+    } else {
+      // Promo-level discount takes precedence; tier-level is the fallback
+      discountAmount =
+        promoCode.discountAmount != null
+          ? Number(promoCode.discountAmount)
+          : tier.promoDiscountAmount
+            ? Number(tier.promoDiscountAmount)
+            : 0;
+    }
 
     res.json({
       valid: true,

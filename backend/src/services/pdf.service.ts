@@ -48,7 +48,7 @@ function fmtDate(d: Date): string {
 }
 
 function fmtIssued(d: Date): string {
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
@@ -109,9 +109,36 @@ function resolveAmbrosianLogoPath(): string | null {
   return null;
 }
 
+function resolveNecMoneyLogoPath(): string | null {
+  const candidates = [
+    // Production: public/ folder in cwd (same as ambrosian logo)
+    path.join(process.cwd(), 'public/nec money.jpeg'),
+    // Dev mode: relative from src/services
+    path.join(__dirname, '../../public/nec money.jpeg'),
+    // Prod build: dist/assets/ (if copied during build)
+    path.join(__dirname, '../assets/nec money.jpeg'),
+    path.join(process.cwd(), 'dist/assets/nec money.jpeg'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        console.log(`[PDF Service] NEC Money logo found at: ${candidate}`);
+        return candidate;
+      }
+    } catch (err) {
+      // Continue to next candidate
+    }
+  }
+
+  console.warn(`[PDF Service] NEC Money (ticket partner) logo not found.`);
+  return null;
+}
+
 // Resolve at module load with fallback across dev/prod layouts.
 const LOGO_PATH = resolveLogoPath();
 const AMBROSIAN_LOGO_PATH = resolveAmbrosianLogoPath();
+const NEC_MONEY_LOGO_PATH = resolveNecMoneyLogoPath();
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 255;
@@ -176,17 +203,55 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
   // Banglafest Logo (shrunken to fit under Ambrosian block) - reduced gap
   const LW = 180;
   const logoY = offsetY + 40; // compressed spacing between logos
+  const SPONSOR_SECTION_H = 55; // height reserved for ticket partner sponsor logo at bottom
+  const logoH = PAGE_HEIGHT - logoY + offsetY - SPONSOR_SECTION_H;
   if (LOGO_PATH) {
     doc.image(LOGO_PATH, 0, logoY, {
-      fit: [LW, PAGE_HEIGHT - logoY + offsetY],
+      fit: [LW, logoH],
       align: 'center',
       valign: 'center',
     });
   } else {
-    doc.rect(0, logoY, LW, PAGE_HEIGHT - logoY + offsetY).fill('#f6f6f6');
+    doc.rect(0, logoY, LW, logoH).fill('#f6f6f6');
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#222222')
-      .text('BANGLAFEST', 24, logoY + (PAGE_HEIGHT - logoY + offsetY) / 2 - 12, { width: LW - 48, align: 'center' });
+      .text('BANGLAFEST', 24, logoY + logoH / 2 - 12, { width: LW - 48, align: 'center' });
   }
+
+  // Ticket Partner sponsor section (bottom of left column)
+  const sponsorTopY = offsetY + PAGE_HEIGHT - SPONSOR_SECTION_H;
+  doc.moveTo(0, sponsorTopY).lineTo(LW, sponsorTopY)
+    .strokeColor('#dddddd').lineWidth(0.5).stroke();
+  doc.fontSize(6).font('Helvetica-Bold').fillColor('#888888')
+    .text('TICKET PARTNER', 0, sponsorTopY + 4, { width: LW, align: 'center' });
+
+  const sponsorLogoH = 33;
+  const sponsorLogoW = Math.round(sponsorLogoH * 1.839); // 61
+  const sponsorLogoX = Math.round((LW - sponsorLogoW) / 2); // 60
+  const textX = sponsorLogoX + sponsorLogoW + 6; // 127
+
+  if (NEC_MONEY_LOGO_PATH) {
+    try {
+      doc.image(NEC_MONEY_LOGO_PATH, sponsorLogoX, sponsorTopY + 12, {
+        width: sponsorLogoW,
+        height: sponsorLogoH,
+      });
+    } catch (err) {
+      console.error(`[PDF] ✗ Error rendering NEC Money (ticket partner) logo: ${err}`);
+    }
+  }
+
+  // Vertical necmoney.com text on the right side of the logo in full black
+  doc.save()
+    .fontSize(4)
+    .font('Helvetica-Bold')
+    .fillColor('#000000')
+    .rotate(-90, { origin: [textX, sponsorTopY + 28] })
+    .text('necmoney.com', textX - 25, sponsorTopY + 28 - 2, {
+      width: 50,
+      align: 'center',
+      lineBreak: false
+    });
+  doc.restore();
 
   const DIV_X = 395;
   doc.moveTo(DIV_X, offsetY + 16).lineTo(DIV_X, offsetY + PAGE_HEIGHT - 16)
@@ -255,20 +320,20 @@ function drawTicketPage(doc: InstanceType<typeof PDFDocument>, data: TicketPdfDa
   if (specials && ry < offsetY + PAGE_HEIGHT - 25) {
     for (const special of specials) {
       if (ry >= offsetY + PAGE_HEIGHT - 22) break;
-      
+
       // Split special addition text into 2 lines without truncation
       const fullText = special.ticketDisplayText;
       const maxCharsPerLine = 42;
       let line1 = fullText;
       let line2 = '';
-      
+
       if (fullText.length > maxCharsPerLine) {
         const mid = fullText.lastIndexOf(' ', maxCharsPerLine);
         const splitIdx = mid > 20 ? mid : maxCharsPerLine;
         line1 = fullText.slice(0, splitIdx).trim();
         line2 = fullText.slice(splitIdx).trim();
       }
-      
+
       doc.fontSize(8.5).font('Helvetica').fillColor('#1a1a1a')
         .text(line1, MX, ry, { width: MW });
       if (line2) {
@@ -420,13 +485,24 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
     console.warn(`[PNG] ⚠ AMBROSIAN_LOGO_PATH is null`);
   }
 
+  let necMoneyLogoDataUri: string | null = null;
+  if (NEC_MONEY_LOGO_PATH) {
+    try {
+      const necMoneyBuffer = fs.readFileSync(NEC_MONEY_LOGO_PATH);
+      necMoneyLogoDataUri = `data:image/jpeg;base64,${necMoneyBuffer.toString('base64')}`;
+      console.log(`[PNG] ✓ NEC Money (ticket partner) logo loaded (${necMoneyBuffer.length} bytes)`);
+    } catch (err) {
+      console.error(`[PNG] ✗ Error loading NEC Money logo: ${err}`);
+    }
+  }
+
   const venue = data.location || 'To Be Announced';
   const venueCommaIndex = venue.indexOf(',');
   const venueName = venueCommaIndex > -1 ? venue.slice(0, venueCommaIndex).trim() : venue;
   const venueCity = venueCommaIndex > -1 ? venue.slice(venueCommaIndex + 1).trim() : '';
 
   const performerLines = (data.performers ?? []).map((p) => truncateText(p.ticketDisplayName, 30));
-  
+
   // Handle special additions with 2-line wrapping without truncation
   let specialLine1 = '';
   let specialLine2 = '';
@@ -445,6 +521,14 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
 
   // Calculate Banglafest logo Y position to match PDF - compressed spacing
   const banglafestLogoY = 76;
+  const banglafestSponsorH = 55; // height reserved for ticket partner sponsor at bottom
+  const banglafestLogoH = PAGE_HEIGHT - banglafestLogoY - banglafestSponsorH; // 124px
+  const svgSponsorTopY = PAGE_HEIGHT - banglafestSponsorH; // 200px
+
+  const sponsorLogoH = 33;
+  const sponsorLogoW = Math.round(sponsorLogoH * 1.839); // 61
+  const sponsorLogoX = Math.round((180 - sponsorLogoW) / 2); // 60
+  const textX = sponsorLogoX + sponsorLogoW + 6; // 127
 
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_WIDTH}" height="${PAGE_HEIGHT}" viewBox="0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}">
@@ -459,13 +543,23 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
 
   <!-- Ambrosian Logo at top left -->
   ${ambrosianLogoDataUri
-    ? `<image href="${ambrosianLogoDataUri}" x="2" y="2" width="180" height="66" preserveAspectRatio="xMinYMin meet"/>`
-    : `<!-- AMBROSIAN LOGO NOT FOUND - PATH: ${AMBROSIAN_LOGO_PATH || 'NULL'} --><rect x="2" y="2" width="180" height="66" fill="#f26522" stroke="#444" stroke-width="1"/><text x="92" y="35" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle" font-family="Arial">AMBROSIAN</text>`}
+      ? `<image href="${ambrosianLogoDataUri}" x="2" y="2" width="180" height="66" preserveAspectRatio="xMinYMin meet"/>`
+      : `<!-- AMBROSIAN LOGO NOT FOUND - PATH: ${AMBROSIAN_LOGO_PATH || 'NULL'} --><rect x="2" y="2" width="180" height="66" fill="#f26522" stroke="#444" stroke-width="1"/><text x="92" y="35" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle" font-family="Arial">AMBROSIAN</text>`}
   
-  <!-- Banglafest Logo (shrunk to fit under Ambrosian) -->
+  <!-- Banglafest Logo (shrunk to fit under Ambrosian, leaves room for ticket partner) -->
   ${logoDataUri
-    ? `<image href="${logoDataUri}" x="0" y="${banglafestLogoY}" width="180" height="${PAGE_HEIGHT - banglafestLogoY}" preserveAspectRatio="xMidYMid meet"/>`
-    : `<rect x="0" y="${banglafestLogoY}" width="180" height="${PAGE_HEIGHT - banglafestLogoY}" fill="#f6f6f6"/><text x="90" y="165" fill="#222222" text-anchor="middle" font-size="20" font-weight="bold" font-family="Arial, Helvetica, sans-serif">BANGLAFEST</text>`}
+      ? `<image href="${logoDataUri}" x="0" y="${banglafestLogoY}" width="180" height="${banglafestLogoH}" preserveAspectRatio="xMidYMid meet"/>`
+      : `<rect x="0" y="${banglafestLogoY}" width="180" height="${banglafestLogoH}" fill="#f6f6f6"/><text x="90" y="165" fill="#222222" text-anchor="middle" font-size="20" font-weight="bold" font-family="Arial, Helvetica, sans-serif">BANGLAFEST</text>`}
+
+  <!-- Ticket Partner sponsor section at bottom of left column -->
+  <line x1="0" y1="${svgSponsorTopY}" x2="180" y2="${svgSponsorTopY}" stroke="#dddddd" stroke-width="0.5"/>
+  <text x="90" y="${svgSponsorTopY + 11}" fill="#888888" font-size="6" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">TICKET PARTNER</text>
+  ${necMoneyLogoDataUri
+      ? `<image href="${necMoneyLogoDataUri}" x="${sponsorLogoX}" y="${svgSponsorTopY + 12}" width="${sponsorLogoW}" height="${sponsorLogoH}"/>`
+      : `<text x="90" y="${svgSponsorTopY + 30}" fill="#888888" font-size="8" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">NEC MONEY</text>`}
+  <g transform="translate(${textX} ${svgSponsorTopY + 28}) rotate(-90)">
+    <text x="0" y="1.5" fill="#000000" font-size="4" font-weight="bold" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">necmoney.com</text>
+  </g>
 
   <line x1="395" y1="24" x2="395" y2="239" stroke="#cccccc" stroke-width="0.8"/>
 
@@ -490,9 +584,9 @@ export async function generateTicketPng(data: TicketPdfData): Promise<Buffer> {
   <text x="222" y="91" fill="${BRAND_ORANGE}" font-size="12" font-weight="bold" font-family="Arial, Helvetica, sans-serif">PERFORMERS:</text>
 
   ${performerLines.map((line, index) => {
-    const y = 104 + index * 11;
-    return `<circle cx="227" cy="${y - 2}" r="2" fill="${BRAND_ORANGE}"/><text x="235" y="${y}" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif">${xmlEscape(line)}</text>`;
-  }).join('')}
+        const y = 104 + index * 11;
+        return `<circle cx="227" cy="${y - 2}" r="2" fill="${BRAND_ORANGE}"/><text x="235" y="${y}" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif">${xmlEscape(line)}</text>`;
+      }).join('')}
 
   ${specialLine1 ? `<text x="222" y="178" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif">${xmlEscape(specialLine1)}</text>` : ''}
   ${specialLine2 ? `<text x="222" y="189" fill="#1a1a1a" font-size="8.5" font-family="Arial, Helvetica, sans-serif">${xmlEscape(specialLine2)}</text>` : ''}
