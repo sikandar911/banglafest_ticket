@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle, User, Check } from "lucide-react";
+import { CalendarDays, MapPin, ArrowLeft, Minus, Plus, Tag, CheckCircle, XCircle, User, Check, Info } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { eventsApi } from "../api/events";
@@ -18,10 +18,10 @@ interface AppliedPromo {
   message: string;
 }
 
-const formatEventDateInLondon = (dateString: string) => {
+const formatEventDateInUTC = (dateString: string) => {
   try {
     return new Intl.DateTimeFormat("en-US", {
-      timeZone: "Europe/London",
+      timeZone: "UTC",
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -32,10 +32,10 @@ const formatEventDateInLondon = (dateString: string) => {
   }
 };
 
-const formatEventTimeInLondon = (dateString: string) => {
+const formatEventTimeInUTC = (dateString: string) => {
   try {
     return new Intl.DateTimeFormat("en-US", {
-      timeZone: "Europe/London",
+      timeZone: "UTC",
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
@@ -297,16 +297,20 @@ export function EventDetailPage() {
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-primary-400" />
-                {formatEventDateInLondon(event.startTime)}
+                {formatEventDateInUTC(event.startTime)}
               </span>
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-gray-600" />
-                {formatEventTimeInLondon(event.startTime)} — {formatEventTimeInLondon(event.endTime)}
+                {formatEventTimeInUTC(event.startTime)} — {formatEventTimeInUTC(event.endTime)}
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-primary-400" />
                 {event.location || "TBA"}
               </span>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-sm text-primary-400 bg-primary-950/30 border border-primary-800/20 rounded-lg px-3 py-2 w-fit">
+              <Info className="w-4 h-4 text-primary-400 shrink-0" />
+              <span>No ticket is needed for children under 5 years old.</span>
             </div>
           </div>
 

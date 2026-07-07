@@ -4,7 +4,31 @@ import { CalendarDays, MapPin, Ticket } from 'lucide-react';
 import { eventsApi } from '../api/events';
 import { PageSpinner } from '../components/ui/Spinner';
 // import { AvailabilityBadge } from '../components/ui/Badge';
-import { format } from 'date-fns';
+
+const formatEventDateInUTC = (dateString: string) => {
+  try {
+    const d = new Date(dateString);
+    const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short' }).format(d);
+    const month = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short' }).format(d);
+    const day = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', day: 'numeric' }).format(d);
+    const year = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 'numeric' }).format(d);
+    return `${weekday}, ${month} ${day} ${year}`;
+  } catch (e) {
+    return '';
+  }
+};
+
+const formatEventTimeInUTC = (dateString: string) => {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'UTC',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(dateString));
+  } catch (e) {
+  }
+};
 
 export function HomePage() {
   const { data, isLoading, error } = useQuery({
@@ -77,7 +101,7 @@ export function HomePage() {
                   <div className="space-y-2 text-sm text-gray-400 flex-1">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary-400 shrink-0" />
-                      {format(new Date(event.startTime), 'EEE, MMM d yyyy • h:mm a')}
+                      {formatEventDateInUTC(event.startTime)} • {formatEventTimeInUTC(event.startTime)} - {formatEventTimeInUTC(event.endTime)}
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-primary-400 shrink-0" />
