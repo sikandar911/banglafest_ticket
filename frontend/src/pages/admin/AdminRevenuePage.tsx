@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { PoundSterling, TrendingUp, AlertCircle, Users, X } from 'lucide-react';
+import { PoundSterling, TrendingUp, AlertCircle, Users, X, Tag } from 'lucide-react';
 import { useState } from 'react';
 import { adminApi } from '../../api/admin';
 import { PageSpinner } from '../../components/ui/Spinner';
@@ -14,16 +14,29 @@ export function AdminRevenuePage() {
     }),
   });
 
-  if (isLoading) return <PageSpinner />;
+  const { data: promoData, isLoading: isPromoLoading, isError: isPromoError, refetch: refetchPromos } = useQuery({
+    queryKey: ['admin', 'promo-codes'],
+    queryFn: () => adminApi.listPromoCodes().then((r) => r.data),
+  });
 
-  if (isError) {
+  const [selectedPromoForModal, setSelectedPromoForModal] = useState<string | null>(null);
+
+  const { data: promoOrdersData, isLoading: isPromoOrdersLoading } = useQuery({
+    queryKey: ['promo-code-orders', selectedPromoForModal],
+    queryFn: () => selectedPromoForModal ? adminApi.getPromoCodeOrders(selectedPromoForModal).then((r) => r.data) : null,
+    enabled: !!selectedPromoForModal,
+  });
+
+  if (isLoading || isPromoLoading) return <PageSpinner />;
+
+  if (isError || isPromoError) {
     return (
       <div className="space-y-6">
         <h2 className="text-xl font-bold text-white">Revenue</h2>
         <div className="card flex flex-col items-center py-12 gap-4">
           <AlertCircle className="w-10 h-10 text-red-400" />
           <p className="text-gray-400">Failed to load revenue data.</p>
-          <button className="btn-secondary text-sm" onClick={() => refetch()}>Retry</button>
+          <button className="btn-secondary text-sm" onClick={() => { refetch(); refetchPromos(); }}>Retry</button>
         </div>
       </div>
     );
@@ -32,8 +45,34 @@ export function AdminRevenuePage() {
   const rev = data?.revenue;
   const salesExecBreakdown = data?.salesExecutiveBreakdown ?? [];
 
+  const promoCodesList = promoData?.promoCodes ?? [];
+  const apiBreakdown = data?.promoCodeBreakdown ?? [];
+
+  const combinedPromoBreakdown: any[] = promoCodesList.map((pc) => {
+    const matched = apiBreakdown.find((p) => p.promoCodeId === pc.id);
+    return {
+      promoCodeId: pc.id,
+      code: pc.code,
+      influencerName: pc.influencerName,
+      ticketsSold: matched?.ticketsSold ?? 0,
+      revenueGenerated: matched?.revenueGenerated ?? 0,
+      ordersCount: matched?.ordersCount ?? 0,
+    };
+  });
+
+  // Append any deleted/historical promo codes that have performance records but are not in the current active list
+  apiBreakdown.forEach((p) => {
+    if (!combinedPromoBreakdown.some((item) => item.promoCodeId === p.promoCodeId)) {
+      combinedPromoBreakdown.push(p);
+    }
+  });
+
+  // Sort: highest revenue generated first
+  combinedPromoBreakdown.sort((a, b) => b.revenueGenerated - a.revenueGenerated);
+
   console.log('Revenue data:', rev);
   console.log('Sales Executive Breakdown:', salesExecBreakdown);
+  console.log('Combined Promo Breakdown:', combinedPromoBreakdown);
 
   if (!rev) return null;
 
@@ -41,7 +80,7 @@ export function AdminRevenuePage() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-white">Revenue</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card">
           <div className="flex items-center gap-3 mb-2">
             <PoundSterling className="w-5 h-5 text-green-400" />
@@ -107,8 +146,8 @@ export function AdminRevenuePage() {
       {/* Promo Code Performance */}
       <div className="card">
         <h3 className="text-base font-semibold text-white mb-4">Promo Code Performance</h3>
-        {!data?.promoCodeBreakdown || data.promoCodeBreakdown.length === 0 ? (
-          <p className="text-sm text-gray-500 italic py-4 text-center">No promo code sales data yet.</p>
+        {combinedPromoBreakdown.length === 0 ? (
+          <p className="text-sm text-gray-500 italic py-4 text-center">No promo codes configured.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-gray-700">
             <table className="w-full text-sm text-left">
@@ -123,10 +162,15 @@ export function AdminRevenuePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {data.promoCodeBreakdown.map((promo: any) => (
+                {combinedPromoBreakdown.map((promo: any) => (
                   <tr key={promo.promoCodeId} className="hover:bg-gray-800/40 transition-colors">
                     <td className="px-4 py-3 font-mono font-semibold text-purple-300">
-                      {promo.code}
+                      <button
+                        onClick={() => setSelectedPromoForModal(promo.promoCodeId)}
+                        className="hover:text-purple-100 hover:underline focus:outline-none transition-all text-left"
+                      >
+                        {promo.code}
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-gray-300">
                       {promo.influencerName}
@@ -151,18 +195,18 @@ export function AdminRevenuePage() {
                     Total
                   </td>
                   <td className="px-4 py-3 text-center text-white">
-                    {data.promoCodeBreakdown.reduce((sum: number, p: any) => sum + p.ticketsSold, 0)}
+                    {combinedPromoBreakdown.reduce((sum: number, p: any) => sum + p.ticketsSold, 0)}
                   </td>
                   <td className="px-4 py-3 text-center text-gray-400">
-                    {data.promoCodeBreakdown.reduce((sum: number, p: any) => sum + p.ordersCount, 0)}
+                    {combinedPromoBreakdown.reduce((sum: number, p: any) => sum + p.ordersCount, 0)}
                   </td>
                   <td className="px-4 py-3 text-right text-green-400">
-                    £{data.promoCodeBreakdown.reduce((sum: number, p: any) => sum + p.revenueGenerated, 0).toFixed(2)}
+                    £{combinedPromoBreakdown.reduce((sum: number, p: any) => sum + p.revenueGenerated, 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-right text-gray-300">
                     £{(
-                      data.promoCodeBreakdown.reduce((sum: number, p: any) => sum + p.revenueGenerated, 0) /
-                      (data.promoCodeBreakdown.reduce((sum: number, p: any) => sum + p.ordersCount, 0) || 1)
+                      combinedPromoBreakdown.reduce((sum: number, p: any) => sum + p.revenueGenerated, 0) /
+                      (combinedPromoBreakdown.reduce((sum: number, p: any) => sum + p.ordersCount, 0) || 1)
                     ).toFixed(2)}
                   </td>
                 </tr>
@@ -259,6 +303,86 @@ export function AdminRevenuePage() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Promo Code Orders Details Modal */}
+      {selectedPromoForModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-3xl w-full mx-4 max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-800">
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                  <Tag className="w-5 h-5 text-purple-400" />
+                  Promo Code Orders Detail
+                </h2>
+                {promoOrdersData?.promoCode && (
+                  <p className="text-sm text-gray-400 mt-1">
+                    Code: <span className="font-mono font-semibold text-purple-300">{promoOrdersData.promoCode.code}</span> · Influencer: <span className="text-white font-medium">{promoOrdersData.promoCode.influencerName}</span>
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setSelectedPromoForModal(null)}
+                className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-4 min-h-[200px]">
+              {isPromoOrdersLoading ? (
+                <div className="flex flex-col items-center justify-center h-48 space-y-3">
+                  <PageSpinner />
+                  <p className="text-sm text-gray-500">Loading orders...</p>
+                </div>
+              ) : !promoOrdersData?.orders || promoOrdersData.orders.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 italic">
+                  No paid orders have been placed using this promo code yet.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {promoOrdersData.orders.map((order) => (
+                    <div key={order.id} className="border border-gray-800 rounded-lg p-4 bg-gray-950/20 hover:border-gray-700/80 transition-all">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-800/60 pb-3 mb-3">
+                        <div>
+                          <p className="text-xs text-gray-500 font-mono">Order ID: {order.id.split('-')[0]}...</p>
+                          <h4 className="font-semibold text-white mt-0.5">{order.user.name}</h4>
+                          <p className="text-xs text-purple-300 font-mono">{order.user.email}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Total Amount</p>
+                          <p className="text-base font-bold text-green-400">£{order.totalAmount.toFixed(2)}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">{new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Tickets</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {order.tickets.map((ticket) => (
+                            <div key={ticket.id} className="flex flex-col justify-center bg-gray-800/40 rounded px-3 py-2 border border-gray-800">
+                              <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide">{ticket.ticketTier.name}</span>
+                              <span className="text-sm font-medium text-white truncate">{ticket.attendeeName || order.user.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-gray-800 flex justify-end">
+              <button
+                onClick={() => setSelectedPromoForModal(null)}
+                className="btn-secondary px-6"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

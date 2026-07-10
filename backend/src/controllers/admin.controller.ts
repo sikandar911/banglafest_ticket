@@ -1197,3 +1197,57 @@ export async function deletePromoCode(req: Request, res: Response, next: NextFun
     next(err);
   }
 }
+
+// GET /api/admin/promo-codes/:id/orders
+export async function getPromoCodeOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const promoCode = await prisma.promoCode.findUnique({
+      where: { id },
+      select: { id: true, code: true, influencerName: true },
+    });
+
+    if (!promoCode) {
+      res.status(404).json({ error: 'Promo code not found.' });
+      return;
+    }
+
+    const orders = await prisma.order.findMany({
+      where: { promoCodeId: id, status: 'PAID' },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        createdAt: true,
+        totalAmount: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        tickets: {
+          select: {
+            id: true,
+            attendeeName: true,
+            ticketTier: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.json({
+      promoCode,
+      orders: orders.map((o) => ({
+        ...o,
+        totalAmount: Number(o.totalAmount),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}

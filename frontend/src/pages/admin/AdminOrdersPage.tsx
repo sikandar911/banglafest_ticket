@@ -110,16 +110,16 @@ export function AdminOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-xl font-bold text-white">Orders</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <button
-            className="btn-primary text-sm py-1.5 flex items-center gap-2"
+            className="btn-primary text-sm py-1.5 flex items-center justify-center gap-2 w-full sm:w-auto"
             onClick={() => setShowBypassForm(!showBypassForm)}
           >
             <Lock className="w-4 h-4" /> Book Free Ticket
           </button>
-          <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+          <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700 justify-center">
             {[
               { label: 'All', value: '' },
               { label: 'Paid', value: 'PAID' },
@@ -128,7 +128,7 @@ export function AdminOrdersPage() {
               <button
                 key={f.label}
                 onClick={() => { setStatus(f.value); setPage(1); }}
-                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all flex-1 sm:flex-initial text-center ${
                   status === f.value
                     ? 'bg-primary-600 text-white shadow-sm'
                     : 'text-gray-400 hover:text-white'
@@ -293,10 +293,10 @@ export function AdminOrdersPage() {
                   <p className="text-xs text-gray-600">{format(new Date(order.createdAt), 'MMM d, yyyy · h:mm a')}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                 <p className="font-bold text-white">£{Number(order.totalAmount).toFixed(2)}</p>
                 {order.status === 'PAID' && !order.isBypassed && (
-                  <>
+                  <div className="flex items-center gap-2">
                     <button
                       className="btn-secondary py-1.5 text-xs"
                       onClick={() => resendMutation.mutate(order.id)}
@@ -315,7 +315,7 @@ export function AdminOrdersPage() {
                     >
                       Refund
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>

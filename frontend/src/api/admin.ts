@@ -87,4 +87,20 @@ export const adminApi = {
 
   deletePromoCode: (id: string) =>
     api.delete(`/api/admin/promo-codes/${id}`),
+
+  getPromoCodeOrders: (id: string) =>
+    api.get<{
+      promoCode: { id: string; code: string; influencerName: string };
+      orders: Array<{
+        id: string;
+        createdAt: string;
+        totalAmount: number;
+        user: { name: string; email: string };
+        tickets: Array<{
+          id: string;
+          attendeeName: string | null;
+          ticketTier: { name: string };
+        }>;
+      }>;
+    }>(`/api/admin/promo-codes/${id}/orders`),
 };

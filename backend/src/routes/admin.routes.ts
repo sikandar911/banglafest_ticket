@@ -23,6 +23,7 @@ import {
   togglePromoCode,
   deletePromoCode,
   createUser,
+  getPromoCodeOrders,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -401,5 +402,6 @@ router.patch(
 );
 router.patch('/promo-codes/:id/toggle', togglePromoCode);
 router.delete('/promo-codes/:id', deletePromoCode);
+router.get('/promo-codes/:id/orders', getPromoCodeOrders);
 
 export default router;

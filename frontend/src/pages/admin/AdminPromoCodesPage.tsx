@@ -284,7 +284,7 @@ function PromoFormFields({
           Validity Period{' '}
           <span className="text-gray-500 font-normal">(optional)</span>
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-xs text-gray-500">Start Date</label>
             <input
@@ -546,7 +546,7 @@ export default function AdminPromoCodesPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Tag className="h-6 w-6 text-purple-400" />
           <h1 className="text-2xl font-bold text-white">Promo Codes</h1>
@@ -587,7 +587,7 @@ export default function AdminPromoCodesPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-gray-700 bg-gray-800 shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-700 bg-gray-800 shadow-sm overflow-x-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-gray-500">Loading…</div>
         ) : promoCodes.length === 0 ? (
