@@ -58,15 +58,9 @@ check_prerequisites() {
 
 # Stop running containers gracefully
 stop_containers() {
-    log_info "Stopping existing containers..."
-    
-    if docker-compose ps | grep -q "Up"; then
-        docker-compose down --timeout=30
-        sleep 5
-        log_success "Containers stopped successfully"
-    else
-        log_info "No running containers found"
-    fi
+    log_info "Stopping and removing existing containers..."
+    docker-compose down --timeout=30
+    log_success "Containers stopped and removed successfully"
 }
 
 # Clean stale locks (for safe migration)
