@@ -970,6 +970,15 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
           minTickets: minTickets ? parseInt(minTickets) : 10,
         })),
       });
+    } else if (!isGroupPromo && Array.isArray(groupDiscounts) && groupDiscounts.length > 0) {
+      await prisma.groupPromo.createMany({
+        data: groupDiscounts.map((gd) => ({
+          promoCodeId: promoCode.id,
+          ticketTierId: gd.tierId,
+          discountAmount: Number(gd.discountAmount),
+          minTickets: 1,
+        })),
+      });
     }
 
     // Re-fetch to return complete information including Group Promo tiers
@@ -1006,28 +1015,30 @@ export async function createPromoCode(req: Request, res: Response, next: NextFun
           );
         }
       }
-    } else if (parsedDiscount !== null && parsedDiscount > 0) {
-      const tiers = await prisma.ticketTier.findMany({
-        where: { eventId: { in: eventIds as string[] } },
-        select: { name: true, price: true, event: { select: { title: true } } },
-      });
-      for (const tier of tiers) {
-        if (parsedDiscount >= Number(tier.price)) {
-          warnings.push(
-            `"${tier.event.title}" → Tier "${tier.name}": promo discount £${parsedDiscount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
-          );
-        }
-      }
     } else {
+      const ids = Array.isArray(eventIds) ? (eventIds as string[]) : [];
       const tiers = await prisma.ticketTier.findMany({
-        where: { eventId: { in: eventIds as string[] }, promoDiscountAmount: { not: null } },
-        select: { name: true, price: true, promoDiscountAmount: true, event: { select: { title: true } } },
+        where: { eventId: { in: ids } },
+        select: { id: true, name: true, price: true, promoDiscountAmount: true, event: { select: { title: true } } },
       });
+      const overrides = Array.isArray(groupDiscounts) ? groupDiscounts : [];
       for (const tier of tiers) {
-        const discount = Number(tier.promoDiscountAmount);
-        if (discount >= Number(tier.price)) {
+        const override = overrides.find((gd) => gd.tierId === tier.id);
+        let effectiveDiscount = 0;
+        let isOverride = false;
+        if (override) {
+          effectiveDiscount = Number(override.discountAmount);
+          isOverride = true;
+        } else if (parsedDiscount !== null) {
+          effectiveDiscount = parsedDiscount;
+        } else if (tier.promoDiscountAmount !== null) {
+          effectiveDiscount = Number(tier.promoDiscountAmount);
+        }
+
+        if (effectiveDiscount >= Number(tier.price)) {
+          const prefix = isOverride ? 'tier-override ' : '';
           warnings.push(
-            `"${tier.event.title}" → Tier "${tier.name}": promo discount £${discount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
+            `"${tier.event.title}" → Tier "${tier.name}": ${prefix}promo discount £${effectiveDiscount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
           );
         }
       }
@@ -1045,7 +1056,10 @@ export async function updatePromoCode(req: Request, res: Response, next: NextFun
     const { id } = req.params;
     const { influencerName, socialMedia, discountAmount, eventIds, startDate, endDate, isGroupPromo, minTickets, groupDiscounts } = req.body;
 
-    const existing = await prisma.promoCode.findUnique({ where: { id } });
+    const existing = await prisma.promoCode.findUnique({
+      where: { id },
+      include: { groupPromos: true },
+    });
     if (!existing) {
       res.status(404).json({ error: 'Promo code not found.' });
       return;
@@ -1085,17 +1099,29 @@ export async function updatePromoCode(req: Request, res: Response, next: NextFun
     }
 
     // Update GroupPromo records
-    if (isGroupPromo !== undefined) {
+    if (isGroupPromo !== undefined || groupDiscounts !== undefined) {
       await prisma.groupPromo.deleteMany({ where: { promoCodeId: id } });
-      if (isGroupPromo && Array.isArray(groupDiscounts)) {
-        await prisma.groupPromo.createMany({
-          data: groupDiscounts.map((gd) => ({
-            promoCodeId: id,
-            ticketTierId: gd.tierId,
-            discountAmount: Number(gd.discountAmount),
-            minTickets: minTickets ? parseInt(minTickets) : 10,
-          })),
-        });
+      const targetIsGroupPromo = isGroupPromo !== undefined ? isGroupPromo : (existing!.discountAmount == null && (existing!.groupPromos && existing!.groupPromos.length > 0 && existing!.groupPromos[0].minTickets > 1));
+      if (Array.isArray(groupDiscounts)) {
+        if (targetIsGroupPromo) {
+          await prisma.groupPromo.createMany({
+            data: groupDiscounts.map((gd) => ({
+              promoCodeId: id,
+              ticketTierId: gd.tierId,
+              discountAmount: Number(gd.discountAmount),
+              minTickets: minTickets ? parseInt(minTickets) : 10,
+            })),
+          });
+        } else if (groupDiscounts.length > 0) {
+          await prisma.groupPromo.createMany({
+            data: groupDiscounts.map((gd) => ({
+              promoCodeId: id,
+              ticketTierId: gd.tierId,
+              discountAmount: Number(gd.discountAmount),
+              minTickets: 1,
+            })),
+          });
+        }
       }
     }
 
@@ -1139,16 +1165,30 @@ export async function updatePromoCode(req: Request, res: Response, next: NextFun
           );
         }
       }
-    } else if (parsedDiscount !== null && parsedDiscount > 0) {
+    } else {
       const ids = Array.isArray(eventIds) ? (eventIds as string[]) : enrichedPromoCode!.events.map((e) => e.eventId);
       const tiers = await prisma.ticketTier.findMany({
         where: { eventId: { in: ids } },
-        select: { name: true, price: true, event: { select: { title: true } } },
+        select: { id: true, name: true, price: true, promoDiscountAmount: true, event: { select: { title: true } } },
       });
+      const overrides = Array.isArray(groupDiscounts) ? groupDiscounts : [];
       for (const tier of tiers) {
-        if (parsedDiscount >= Number(tier.price)) {
+        const override = overrides.find((gd) => gd.tierId === tier.id);
+        let effectiveDiscount = 0;
+        let isOverride = false;
+        if (override) {
+          effectiveDiscount = Number(override.discountAmount);
+          isOverride = true;
+        } else if (parsedDiscount !== null) {
+          effectiveDiscount = parsedDiscount;
+        } else if (tier.promoDiscountAmount !== null) {
+          effectiveDiscount = Number(tier.promoDiscountAmount);
+        }
+
+        if (effectiveDiscount >= Number(tier.price)) {
+          const prefix = isOverride ? 'tier-override ' : '';
           warnings.push(
-            `"${tier.event.title}" → Tier "${tier.name}": promo discount £${parsedDiscount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
+            `"${tier.event.title}" → Tier "${tier.name}": ${prefix}promo discount £${effectiveDiscount.toFixed(2)} ≥ tier price £${Number(tier.price).toFixed(2)} — tickets will be issued free of charge.`
           );
         }
       }

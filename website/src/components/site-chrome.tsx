@@ -61,28 +61,53 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-white/10 bg-black/55">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div className="space-y-4">
-          <Image
-            src="/banglafest-flat-logo.png"
-            alt="Bangla Fest & Award UK"
-            width={220}
-            height={56}
-            className="h-11 w-auto"
-          />
-          <div className="space-y-1 text-sm text-white/72">
-            <p>Email: connect@ambrosianuk.com</p>
-            <p>Phone: +44 7424 407743</p>
+    <footer className="border-t border-white/10 bg-black/55 text-white/70">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-4">
+            <Image
+              src="/banglafest-flat-logo.png"
+              alt="Bangla Fest & Award UK"
+              width={220}
+              height={56}
+              className="h-11 w-auto"
+            />
+            <div className="space-y-1 text-xs text-white/50">
+              <p>Email: connect@ambrosianuk.com</p>
+              <p>Phone: +44 7424 407743</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-5 text-xs font-semibold tracking-[0.16em] text-white/58 uppercase">
+            {siteNavItems.map((item) => (
+              <Link key={item.href} href={item.href} className="hover:text-white transition-colors">
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-5 text-sm font-semibold tracking-[0.16em] text-white/58 uppercase">
-          {siteNavItems.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-white">
-              {item.label}
-            </Link>
-          ))}
+        <div className="mt-8 border-t border-white/5 pt-6 flex flex-col md:flex-row md:items-start justify-between gap-6 text-xs text-white/40">
+          <div className="max-w-2xl text-left">
+            <p className="font-semibold text-white/70 mb-1">
+              Developed by{" "}
+              <a 
+                href="https://fireworksco.uk/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-[#f18da7] hover:underline font-bold transition-all"
+              >
+                Fireworks CO UK
+              </a>
+              {" "}— Modern Growth Engineering for UK & Australian Enterprise Brands.
+            </p>
+            <p className="leading-relaxed">
+              Based in London, Fireworks CO UK develops dynamic web and mobile applications, deploys high-converting digital marketing, and builds advanced automation workflows. We increase your business visibility, scale your revenue, and automate your operations.
+            </p>
+          </div>
+          <p className="shrink-0 md:text-right self-end md:self-auto">
+            © {new Date().getFullYear()} Banglafest. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>

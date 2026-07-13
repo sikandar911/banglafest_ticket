@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Trash2, ToggleLeft, ToggleRight, Tag, Copy, Check,
   Calendar, AlertTriangle, Clock, Pencil, X,
+  Sliders, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminApi } from '../../api/admin';
@@ -115,6 +116,8 @@ function PromoFormFields({
   events: Event[];
   isEdit?: boolean;
 }) {
+  const [showOverrides, setShowOverrides] = useState(() => !form.isGroupPromo && Object.keys(form.groupDiscounts).length > 0);
+
   function handleEventToggle(eventId: string) {
     setForm((f) => ({
       ...f,
@@ -255,25 +258,125 @@ function PromoFormFields({
         </div>
       ) : (
         /* Discount Amount */
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-300">
-            Discount Amount (£) <span className="text-gray-500 font-normal">(per ticket)</span>
-          </label>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">£</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="w-full rounded-lg border border-gray-600 bg-gray-700 py-2 pl-7 pr-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="e.g. 10.00"
-              value={form.discountAmount}
-              onChange={(e) => setForm((f) => ({ ...f, discountAmount: e.target.value }))}
-            />
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-300">
+              Discount Amount (£) <span className="text-gray-500 font-normal">(per ticket)</span>
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">£</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-full rounded-lg border border-gray-600 bg-gray-700 py-2 pl-7 pr-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="e.g. 10.00"
+                value={form.discountAmount}
+                onChange={(e) => setForm((f) => ({ ...f, discountAmount: e.target.value }))}
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Leave blank to use the per-tier discount set on the Events page.
+            </p>
           </div>
-          <p className="mt-1 text-xs text-gray-500">
-            Leave blank to use the per-tier discount set on the Events page.
-          </p>
+
+          {/* Collapsible Tier Overrides */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowOverrides(!showOverrides)}
+              className="flex items-center justify-between w-full rounded-lg border border-gray-600 bg-gray-700/40 hover:bg-gray-700 px-4 py-2.5 text-sm font-medium text-gray-300 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2">
+                <Sliders className="h-4 w-4 text-purple-400" />
+                <span>Tier-Specific Overrides (Optional)</span>
+                {Object.keys(form.groupDiscounts).length > 0 && (
+                  <span className="rounded-full bg-purple-900/50 px-2 py-0.5 text-xs text-purple-300 border border-purple-700">
+                    {Object.keys(form.groupDiscounts).length} active
+                  </span>
+                )}
+              </div>
+              {showOverrides ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+            </button>
+
+            {showOverrides && (
+              <div className="space-y-3 rounded-lg border border-gray-700 bg-gray-900/50 p-3.5 transition-all duration-200">
+                {form.eventIds.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">Select at least one event below to configure overrides.</p>
+                ) : (
+                  <div className="space-y-3 max-h-56 overflow-y-auto divide-y divide-gray-700/60 pr-1">
+                    {form.eventIds.map((eventId) => {
+                      const ev = events.find((e) => e.id === eventId);
+                      if (!ev) return null;
+                      return (
+                        <div key={ev.id} className="pt-2.5 first:pt-0">
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">{ev.title}</p>
+                          <div className="space-y-2">
+                            {ev.ticketTiers.map((tier) => {
+                              // Calculate fallback preview
+                              let fallbackText = "No discount";
+                              if (form.discountAmount !== "") {
+                                fallbackText = `General: £${Number(form.discountAmount).toFixed(2)}`;
+                              } else if (tier.promoDiscountAmount != null) {
+                                fallbackText = `Event default: £${Number(tier.promoDiscountAmount).toFixed(2)}`;
+                              }
+
+                              return (
+                                <div key={tier.id} className="flex items-center justify-between gap-3 text-xs">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-gray-300 font-medium truncate">{tier.name}</p>
+                                    <p className="text-[10px] text-gray-500">Price: £{Number(tier.price).toFixed(2)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {/* Fallback preview badge */}
+                                    <span className={`text-[10px] rounded px-1.5 py-0.5 whitespace-nowrap ${
+                                      form.groupDiscounts[tier.id] 
+                                        ? 'bg-purple-950/40 text-purple-400 border border-purple-900/60' 
+                                        : 'bg-gray-800 text-gray-500 border border-gray-700/40'
+                                    }`}>
+                                      {form.groupDiscounts[tier.id] 
+                                        ? `Override: £${Number(form.groupDiscounts[tier.id]).toFixed(2)}` 
+                                        : fallbackText}
+                                    </span>
+                                    <div className="relative w-28 shrink-0">
+                                      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">£</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="Use default"
+                                        className="w-full rounded border border-gray-600 bg-gray-700 py-1 pl-5 pr-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500 placeholder-gray-500"
+                                        value={form.groupDiscounts[tier.id] || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setForm((f) => {
+                                            const updatedDiscounts = { ...f.groupDiscounts };
+                                            if (val === '') {
+                                              delete updatedDiscounts[tier.id];
+                                            } else {
+                                              updatedDiscounts[tier.id] = val;
+                                            }
+                                            return {
+                                              ...f,
+                                              groupDiscounts: updatedDiscounts,
+                                            };
+                                          });
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -359,8 +462,8 @@ function EditModal({
     eventIds: pc.events?.map((e) => e.event.id) ?? [],
     startDate: pc.startDate ? new Date(pc.startDate).toISOString().slice(0, 16) : '',
     endDate:   pc.endDate   ? new Date(pc.endDate).toISOString().slice(0, 16)   : '',
-    isGroupPromo: pc.groupPromos !== undefined && pc.groupPromos.length > 0,
-    minTickets: pc.groupPromos && pc.groupPromos.length > 0 ? String(pc.groupPromos[0].minTickets) : '10',
+    isGroupPromo: pc.groupPromos !== undefined && pc.groupPromos.length > 0 && pc.groupPromos[0].minTickets > 1,
+    minTickets: pc.groupPromos && pc.groupPromos.length > 0 && pc.groupPromos[0].minTickets > 1 ? String(pc.groupPromos[0].minTickets) : '10',
     groupDiscounts: pc.groupPromos && pc.groupPromos.length > 0
       ? pc.groupPromos.reduce((acc, gp) => ({ ...acc, [gp.ticketTierId]: String(gp.discountAmount) }), {})
       : {},
@@ -377,11 +480,9 @@ function EditModal({
         endDate: form.endDate || null,
         isGroupPromo: form.isGroupPromo,
         minTickets: form.isGroupPromo ? parseInt(form.minTickets) : 10,
-        groupDiscounts: form.isGroupPromo
-          ? Object.entries(form.groupDiscounts)
-              .filter(([_, amt]) => amt !== '')
-              .map(([tierId, amt]) => ({ tierId, discountAmount: Number(amt) }))
-          : [],
+        groupDiscounts: Object.entries(form.groupDiscounts)
+          .filter(([_, amt]) => amt !== '')
+          .map(([tierId, amt]) => ({ tierId, discountAmount: Number(amt) })),
       }),
     onSuccess: (res) => {
       toast.success('Promo code updated!');
@@ -484,11 +585,9 @@ export default function AdminPromoCodesPage() {
         endDate: form.endDate || null,
         isGroupPromo: form.isGroupPromo,
         minTickets: form.isGroupPromo ? parseInt(form.minTickets) : 10,
-        groupDiscounts: form.isGroupPromo
-          ? Object.entries(form.groupDiscounts)
-              .filter(([_, amt]) => amt !== '')
-              .map(([tierId, amt]) => ({ tierId, discountAmount: Number(amt) }))
-          : [],
+        groupDiscounts: Object.entries(form.groupDiscounts)
+          .filter(([_, amt]) => amt !== '')
+          .map(([tierId, amt]) => ({ tierId, discountAmount: Number(amt) })),
       }),
     onSuccess: (res) => {
       toast.success('Promo code created!');
@@ -656,7 +755,7 @@ export default function AdminPromoCodesPage() {
 
                   {/* Discount */}
                   <td className="px-4 py-3 text-center">
-                    {pc.groupPromos && pc.groupPromos.length > 0 ? (
+                    {pc.groupPromos && pc.groupPromos.length > 0 && pc.groupPromos[0].minTickets > 1 ? (
                       <div className="flex flex-col gap-0.5 items-center">
                         <span className="rounded bg-purple-900/60 px-1.5 py-0.5 text-[9px] font-bold text-purple-300 uppercase tracking-wide ring-1 ring-purple-700">
                           Group ({pc.groupPromos[0].minTickets}+)
@@ -665,12 +764,28 @@ export default function AdminPromoCodesPage() {
                           {pc.groupPromos.map(gp => `${gp.ticketTier?.name || 'Tier'}: £${Number(gp.discountAmount).toFixed(0)}`).join(', ')}
                         </div>
                       </div>
-                    ) : pc.discountAmount != null ? (
-                      <span className="font-semibold text-green-400">
-                        £{Number(pc.discountAmount).toFixed(2)}
-                      </span>
                     ) : (
-                      <span className="text-xs text-gray-500 italic">Per tier</span>
+                      <div className="flex flex-col gap-0.5 items-center">
+                        {pc.groupPromos && pc.groupPromos.length > 0 && (
+                          <span className="rounded bg-cyan-900/60 px-1.5 py-0.5 text-[9px] font-bold text-cyan-300 uppercase tracking-wide ring-1 ring-cyan-700">
+                            Overrides ({pc.groupPromos.length})
+                          </span>
+                        )}
+                        {pc.discountAmount != null ? (
+                          <span className="font-semibold text-green-400">
+                            £{Number(pc.discountAmount).toFixed(2)}
+                          </span>
+                        ) : pc.groupPromos && pc.groupPromos.length > 0 ? (
+                          <span className="text-xs text-gray-500 italic">Overrides set</span>
+                        ) : (
+                          <span className="text-xs text-gray-500 italic">Per tier</span>
+                        )}
+                        {pc.groupPromos && pc.groupPromos.length > 0 && (
+                          <div className="text-[10px] text-gray-400 max-w-[120px] truncate" title={pc.groupPromos.map(gp => `${gp.ticketTier?.name || 'Tier'}: £${Number(gp.discountAmount).toFixed(0)}`).join(', ')}>
+                            {pc.groupPromos.map(gp => `${gp.ticketTier?.name || 'Tier'}: £${Number(gp.discountAmount).toFixed(0)}`).join(', ')}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </td>
 

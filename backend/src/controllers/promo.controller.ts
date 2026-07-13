@@ -66,7 +66,9 @@ export async function validatePromoCode(req: Request, res: Response, next: NextF
     });
 
     let discountAmount = 0;
-    if (groupPromos.length > 0) {
+    const isGroup = groupPromos.length > 0 && groupPromos[0].minTickets > 1;
+
+    if (isGroup) {
       const qty = Number(req.body.quantity) || 1;
       const minTickets = groupPromos[0].minTickets;
       if (qty < minTickets) {
@@ -79,13 +81,18 @@ export async function validatePromoCode(req: Request, res: Response, next: NextF
       const matchedPromo = groupPromos.find((gp) => gp.ticketTierId === tierId);
       discountAmount = matchedPromo ? Number(matchedPromo.discountAmount) : 0;
     } else {
-      // Promo-level discount takes precedence; tier-level is the fallback
-      discountAmount =
-        promoCode.discountAmount != null
-          ? Number(promoCode.discountAmount)
-          : tier.promoDiscountAmount
-            ? Number(tier.promoDiscountAmount)
-            : 0;
+      const matchedPromo = groupPromos.find((gp) => gp.ticketTierId === tierId);
+      if (matchedPromo) {
+        discountAmount = Number(matchedPromo.discountAmount);
+      } else {
+        // Promo-level discount takes precedence; tier-level is the fallback
+        discountAmount =
+          promoCode.discountAmount != null
+            ? Number(promoCode.discountAmount)
+            : tier.promoDiscountAmount
+              ? Number(tier.promoDiscountAmount)
+              : 0;
+      }
     }
 
     res.json({

@@ -62,7 +62,9 @@ export async function createOrder(req: AuthRequest, res: Response, next: NextFun
         where: { promoCodeId: found.id },
       });
 
-      if (groupPromos.length > 0) {
+      const isGroup = groupPromos.length > 0 && groupPromos[0].minTickets > 1;
+
+      if (isGroup) {
         const minTickets = groupPromos[0].minTickets;
         if (quantity < minTickets) {
           res.status(400).json({
@@ -73,7 +75,10 @@ export async function createOrder(req: AuthRequest, res: Response, next: NextFun
         const matchedPromo = groupPromos.find((gp) => gp.ticketTierId === tierId);
         discountPerTicket = matchedPromo ? Number(matchedPromo.discountAmount) : 0;
       } else {
-        if (found.discountAmount != null) {
+        const matchedPromo = groupPromos.find((gp) => gp.ticketTierId === tierId);
+        if (matchedPromo) {
+          discountPerTicket = Number(matchedPromo.discountAmount);
+        } else if (found.discountAmount != null) {
           discountPerTicket = Number(found.discountAmount);
         } else {
           const tier = await prisma.ticketTier.findUnique({ where: { id: tierId } });
