@@ -19,7 +19,12 @@ IMAGE_NAME="banglafest-website"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="${DEPLOY_DIR:-$SCRIPT_DIR}"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
-LOG_FILE="/var/log/banglafest-website-deploy.log"
+# Check if /var/log is writable, otherwise write to script directory
+if [ -w "/var/log" ]; then
+  LOG_FILE="/var/log/banglafest-website-deploy.log"
+else
+  LOG_FILE="$SCRIPT_DIR/deploy.log"
+fi
 BACKUP_TAG=$(date +%Y%m%d_%H%M%S)
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -49,10 +54,9 @@ log_warning() {
 check_prerequisites() {
   log "Checking prerequisites..."
 
-  # Check if running as root
+  # Warn if not running as root, but proceed
   if [ "$EUID" -ne 0 ]; then
-    log_error "This script must be run as root"
-    exit 1
+    log_warning "Not running as root. Proceeding with user privileges."
   fi
 
   # Check if Docker is installed
