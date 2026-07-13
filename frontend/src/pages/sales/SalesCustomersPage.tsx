@@ -19,13 +19,16 @@ function triggerBlobDownload(blob: Blob, fileName: string) {
   window.URL.revokeObjectURL(url);
 }
 
-function CustomerCard({ customer }: { customer: SalesCustomer }) {
+function OrderCard({ order }: { order: any }) {
   const [open, setOpen] = useState(false);
 
   const printMutation = useMutation({
-    mutationFn: () => salesApi.downloadCustomerTicketsPdf(customer.attendeeId),
+    mutationFn: () => salesApi.downloadCustomerTicketsPdf(order.attendee.id, order.id),
     onSuccess: (blob) => {
-      triggerBlobDownload(blob.data, `banglafest-${customer.attendeeName.replace(/\s+/g, '-')}-tickets.pdf`);
+      triggerBlobDownload(
+        blob.data,
+        `banglafest-${order.attendee.name.replace(/\s+/g, '-')}-order-${order.id.slice(0, 8)}-tickets.pdf`
+      );
       toast.success('Tickets downloaded');
     },
     onError: () => toast.error('Failed to download tickets'),
@@ -37,12 +40,15 @@ function CustomerCard({ customer }: { customer: SalesCustomer }) {
         className="w-full flex items-center justify-between gap-4"
         onClick={() => setOpen(!open)}
       >
-        <div className="flex-1 text-left">
-          <p className="font-semibold text-white">{customer.attendeeName}</p>
-          <div className="flex items-center gap-1 text-sm text-gray-400">
-            <Mail className="w-3.5 h-3.5" />
-            {customer.attendeeEmail}
+        <div className="flex-1 text-left min-w-0">
+          <p className="font-semibold text-white truncate">{order.attendee.name}</p>
+          <div className="flex items-center gap-1 text-sm text-gray-400 mt-0.5">
+            <Mail className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{order.attendee.email}</span>
           </div>
+          <p className="text-[11px] text-gray-500 font-medium mt-1 truncate">
+            {order.event.title} · {format(new Date(order.event.startTime), 'MMM d, yyyy')}
+          </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button
@@ -63,11 +69,11 @@ function CustomerCard({ customer }: { customer: SalesCustomer }) {
           <div className="flex items-center gap-4 shrink-0">
             <div className="text-right hidden sm:block">
               <p className="text-xs text-gray-500">Tickets</p>
-              <p className="font-bold text-white">{customer.totalTickets}</p>
+              <p className="font-bold text-white">{order.quantity}</p>
             </div>
             <div className="text-right hidden sm:block">
               <p className="text-xs text-gray-500">Total</p>
-              <p className="font-bold text-orange-400">£{customer.totalSpent.toFixed(2)}</p>
+              <p className="font-bold text-orange-400">£{order.totalAmount.toFixed(2)}</p>
             </div>
             {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </div>
@@ -76,58 +82,56 @@ function CustomerCard({ customer }: { customer: SalesCustomer }) {
 
       {/* Mobile stats */}
       <div className="flex gap-4 mt-2 sm:hidden">
-        <span className="text-xs text-gray-400">{customer.totalTickets} tickets</span>
-        <span className="text-xs text-orange-400 font-medium">£{customer.totalSpent.toFixed(2)}</span>
+        <span className="text-xs text-gray-400">{order.quantity} tickets</span>
+        <span className="text-xs text-orange-400 font-medium">£{order.totalAmount.toFixed(2)}</span>
       </div>
 
       {open && (
         <div className="mt-4 pt-4 border-t border-gray-700 space-y-3">
-          {customer.orders.map((order) => (
-            <div key={order.id} className="bg-gray-800 rounded-lg p-4 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-white text-sm">{order.event.title}</p>
-                  <p className="text-xs text-gray-400">
-                    {format(new Date(order.event.startTime), 'MMM d, yyyy')}
-                    {order.event.location ? ` · ${order.event.location}` : ''}
-                  </p>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                  order.paymentMethod === 'CASH'
-                    ? 'bg-green-900 text-green-300'
-                    : 'bg-blue-900 text-blue-300'
-                }`}>
-                  {order.paymentMethod === 'CASH' ? 'Cash' : 'Card Machine'}
-                </span>
+          <div className="bg-gray-800 rounded-lg p-4 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-medium text-white text-sm">{order.event.title}</p>
+                <p className="text-xs text-gray-400">
+                  {format(new Date(order.event.startTime), 'MMM d, yyyy HH:mm')}
+                  {order.event.location ? ` · ${order.event.location}` : ''}
+                </p>
               </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-1.5 text-gray-400">
-                  <Ticket className="w-3.5 h-3.5" />
-                  <span>{order.tier.name} × {order.quantity}</span>
-                </div>
-                <div className="flex items-center gap-1 text-orange-400 font-semibold">
-                  <PoundSterling className="w-3.5 h-3.5" />
-                  {order.totalAmount.toFixed(2)}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                {order.tickets.map((ticket, i) => (
-                  <div key={ticket.id} className="flex items-center justify-between text-xs text-gray-500">
-                    <span>Ticket {i + 1}: {ticket.id.slice(0, 8)}…</span>
-                    <span className={ticket.status === 'CHECKED_IN' ? 'text-green-400' : ticket.status === 'CANCELLED' ? 'text-red-400' : 'text-gray-400'}>
-                      {ticket.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-xs text-gray-600">
-                Sold {format(new Date(order.createdAt), 'MMM d, yyyy HH:mm')}
-              </p>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                order.paymentMethod === 'CASH'
+                  ? 'bg-green-900 text-green-300'
+                  : 'bg-blue-900 text-blue-300'
+              }`}>
+                {order.paymentMethod === 'CASH' ? 'Cash' : 'Card Machine'}
+              </span>
             </div>
-          ))}
+
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-1.5 text-gray-400">
+                <Ticket className="w-3.5 h-3.5" />
+                <span>{order.tier.name} × {order.quantity}</span>
+              </div>
+              <div className="flex items-center gap-1 text-orange-400 font-semibold">
+                <PoundSterling className="w-3.5 h-3.5" />
+                {order.totalAmount.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              {order.tickets.map((ticket: any, i: number) => (
+                <div key={ticket.id} className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Ticket {i + 1}: {ticket.id.slice(0, 8)}…</span>
+                  <span className={ticket.status === 'CHECKED_IN' ? 'text-green-400' : ticket.status === 'CANCELLED' ? 'text-red-400' : 'text-gray-400'}>
+                    {ticket.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-600">
+              Sold {format(new Date(order.createdAt), 'MMM d, yyyy HH:mm')}
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -157,6 +161,23 @@ export function SalesCustomersPage() {
 
   const customers = data?.customers ?? [];
 
+  // Flat-map to list of orders
+  const orders = customers.flatMap((c) =>
+    c.orders.map((o) => ({
+      ...o,
+      attendee: {
+        id: c.attendeeId,
+        name: c.attendeeName,
+        email: c.attendeeEmail,
+      },
+    }))
+  );
+
+  // Sort orders by createdAt descending
+  const sortedOrders = [...orders].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
   const totalTickets = customers.reduce((s, c) => s + c.totalTickets, 0);
   const totalRevenue = customers.reduce((s, c) => s + c.totalSpent, 0);
 
@@ -184,7 +205,7 @@ export function SalesCustomersPage() {
         </div>
       )}
 
-      {customers.length === 0 ? (
+      {sortedOrders.length === 0 ? (
         <div className="card flex flex-col items-center py-16 gap-3">
           <Mail className="w-10 h-10 text-gray-600" />
           <p className="text-gray-400">No customers yet.</p>
@@ -192,8 +213,8 @@ export function SalesCustomersPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {customers.map((customer) => (
-            <CustomerCard key={customer.attendeeId} customer={customer} />
+          {sortedOrders.map((order) => (
+            <OrderCard key={order.id} order={order} />
           ))}
         </div>
       )}

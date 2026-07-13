@@ -335,18 +335,20 @@ export async function getSalesEvents(req: AuthRequest, res: Response, next: Next
 }
 
 // ─── GET /api/sales/customers/:attendeeId/print-tickets ─────────────────────
-// Sales exec downloads all tickets for a customer as a single PDF
+// Sales exec downloads all tickets for a customer (or specific order) as a single PDF
 export async function printCustomerTickets(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const salesExecId = req.user!.id;
     const { attendeeId } = req.params;
+    const { orderId } = req.query;
 
-    // Find all PAID orders for this attendee by this sales exec
+    // Find all PAID orders for this attendee by this sales exec (optionally filtered by orderId)
     const orders = await prisma.order.findMany({
       where: {
         userId: attendeeId,
         salesExecutiveId: salesExecId,
         status: 'PAID',
+        ...(orderId && { id: String(orderId) }),
       },
       include: {
         tickets: {

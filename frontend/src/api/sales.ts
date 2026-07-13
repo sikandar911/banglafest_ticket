@@ -36,9 +36,12 @@ export const salesApi = {
   // Get customers list
   getCustomers: () => api.get<{ customers: SalesCustomer[] }>('/api/sales/customers'),
 
-  // Download all tickets for a customer as PDF
-  downloadCustomerTicketsPdf: (attendeeId: string) =>
-    api.get<Blob>(`/api/sales/customers/${attendeeId}/print-tickets`, { responseType: 'blob' }),
+  // Download all tickets for a customer (or specific order) as PDF
+  downloadCustomerTicketsPdf: (attendeeId: string, orderId?: string) =>
+    api.get<Blob>(`/api/sales/customers/${attendeeId}/print-tickets`, {
+      params: orderId ? { orderId } : undefined,
+      responseType: 'blob',
+    }),
 
   // Set attendee names for each ticket in an order (sales executive flow)
   setAttendeeNames: (orderId: string, names: string[]) =>
