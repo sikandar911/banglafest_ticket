@@ -133,6 +133,8 @@ export interface RevenueData {
   salesExecOrders?: number;
   salesExecTickets?: number;
   onlineRevenue?: number;
+  checkedIn?: number;
+  checkedOut?: number;
 }
 
 export interface SalesExecutiveBreakdown {

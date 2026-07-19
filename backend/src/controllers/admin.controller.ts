@@ -352,6 +352,15 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
     const totalOnlineTickets = onlineTiersBreakdown.reduce((sum, t) => sum + t.count, 0);
     const totalTicketsSold = totalSalesExecTickets + totalOnlineTickets;
 
+    // --- Check-in / Check-out status calculations ---
+    const checkedInCount = await prisma.ticket.count({
+      where: { status: 'CHECKED_IN', inStatus: true },
+    });
+
+    const checkedOutCount = await prisma.ticket.count({
+      where: { status: 'CHECKED_IN', inStatus: false },
+    });
+
     // --- Promo Code Breakdown calculations ---
     const promoGrouped = await prisma.order.groupBy({
       by: ['promoCodeId'],
@@ -390,6 +399,8 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
         salesExecOrders: salesExecResult._count.id,
         salesExecTickets: salesExecTicketCount,
         onlineRevenue,
+        checkedIn: checkedInCount,
+        checkedOut: checkedOutCount,
       },
       salesExecutiveBreakdown: enrichedSalesExecBreakdown,
       recentOrders: recentOrders.map((o) => ({ ...o, totalAmount: Number(o.totalAmount) })),

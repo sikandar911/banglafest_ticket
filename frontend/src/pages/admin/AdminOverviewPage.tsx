@@ -149,6 +149,38 @@ export function AdminOverviewPage() {
           </div>
         </div>
       )}
+
+      {rev && (
+        <div className="card bg-gray-800/40 border border-gray-700/80 rounded-2xl p-6">
+          <h3 className="font-semibold text-white text-lg mb-4 flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+            Live Event Check-in Status
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Checked In Card */}
+            <div className="rounded-xl border border-green-500/20 bg-green-950/10 p-5 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-semibold text-green-400/80 uppercase tracking-wider mb-1">Checked In Holders</p>
+                <p className="text-xs text-gray-400 mb-4">Currently inside the venue / active tickets</p>
+              </div>
+              <p className="text-4xl font-black text-green-400">
+                {rev.checkedIn ?? 0} <span className="text-sm font-normal text-gray-500">active</span>
+              </p>
+            </div>
+
+            {/* Checked Out Card */}
+            <div className="rounded-xl border border-yellow-500/20 bg-yellow-950/10 p-5 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-semibold text-yellow-400/80 uppercase tracking-wider mb-1">Checked Out Holders</p>
+                <p className="text-xs text-gray-400 mb-4">Scanned but currently checked out</p>
+              </div>
+              <p className="text-4xl font-black text-yellow-400">
+                {rev.checkedOut ?? 0} <span className="text-sm font-normal text-gray-500">out</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
