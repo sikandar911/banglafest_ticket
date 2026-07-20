@@ -20,12 +20,12 @@ export const adminApi = {
     api.put<{ tier: TicketTier }>(`/api/admin/tiers/${tierId}`, data),
 
   // Revenue
-  getRevenue: () => api.get<{
+  getRevenue: (params?: { eventId?: string }) => api.get<{
     revenue: RevenueData;
     salesExecutiveBreakdown: SalesExecutiveBreakdown[];
     ticketBreakdown?: TicketBreakdown;
     promoCodeBreakdown?: PromoBreakdown[];
-  }>('/api/admin/revenue'),
+  }>('/api/admin/revenue', { params }),
 
   // Users
   listUsers: (params?: { page?: number; limit?: number }) =>
@@ -38,7 +38,7 @@ export const adminApi = {
     api.put(`/api/admin/users/${userId}/role`, { role }),
 
   // Orders
-  listOrders: (params?: { page?: number; limit?: number; status?: string }) =>
+  listOrders: (params?: { page?: number; limit?: number; status?: string; eventId?: string }) =>
     api.get<{ orders: Order[]; total: number; totalPages: number }>('/api/admin/orders', { params }),
 
   refundOrder: (orderId: string) =>
@@ -52,8 +52,8 @@ export const adminApi = {
     api.post<{ order: Order; tickets: any[]; message: string }>('/api/admin/bypass', data),
 
   // Promo Codes
-  listPromoCodes: () =>
-    api.get<{ promoCodes: PromoCode[] }>('/api/admin/promo-codes'),
+  listPromoCodes: (params?: { eventId?: string }) =>
+    api.get<{ promoCodes: PromoCode[] }>('/api/admin/promo-codes', { params }),
 
   createPromoCode: (data: {
     code: string;

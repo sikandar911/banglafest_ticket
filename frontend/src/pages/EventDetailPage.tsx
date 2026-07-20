@@ -293,6 +293,16 @@ export function EventDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Event info */}
         <div className="lg:col-span-2 space-y-6">
+          {!event.isActive && (
+            <div className="card border border-red-500/20 bg-red-950/10 p-4 flex items-center gap-3">
+              <XCircle className="w-6 h-6 text-red-400 shrink-0" />
+              <div>
+                <p className="font-semibold text-red-400 text-sm">Booking Closed</p>
+                <p className="text-xs text-gray-400">Ticket sales for this event are currently inactive or closed.</p>
+              </div>
+            </div>
+          )}
+
           <div>
             <h1 className="text-4xl font-extrabold text-white mb-3">{event.title}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
@@ -336,14 +346,14 @@ export function EventDetailPage() {
                   const selectedQty = selectedTiers[tier.id] || 0;
                   return (
                     <div
-                      key={tier.id}
-                      className={`rounded-xl border p-4 transition-all ${
-                        selectedQty > 0
-                          ? "border-primary-500 bg-primary-950"
-                          : isSoldOut
-                          ? "border-gray-800 bg-gray-900 opacity-50"
-                          : "border-gray-800 bg-gray-900"
-                      }`}
+                       key={tier.id}
+                       className={`rounded-xl border p-4 transition-all ${
+                         selectedQty > 0
+                           ? "border-primary-500 bg-primary-950"
+                           : isSoldOut || !event.isActive
+                           ? "border-gray-800 bg-gray-900 opacity-50"
+                           : "border-gray-800 bg-gray-900"
+                       }`}
                     >
                       <div className="flex items-start justify-between gap-4 mb-3">
                         <div className="flex-1">
@@ -377,7 +387,11 @@ export function EventDetailPage() {
                           Max {tier.maxPerPerson} per person
                         </div>
 
-                        {!isSoldOut && (
+                        {!event.isActive ? (
+                          <span className="text-red-400 font-semibold text-xs bg-red-950/40 border border-red-900/40 px-2 py-1 rounded">Booking Closed</span>
+                        ) : isSoldOut ? (
+                          <span className="text-red-400 font-semibold text-sm">SOLD OUT</span>
+                        ) : (
                           <div className="flex items-center gap-2">
                             <button
                               className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-40"
@@ -397,9 +411,6 @@ export function EventDetailPage() {
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
-                        )}
-                        {isSoldOut && (
-                          <span className="text-red-400 font-semibold text-sm">SOLD OUT</span>
                         )}
                       </div>
                     </div>

@@ -2,19 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { PoundSterling, ShoppingBag, Users, TrendingUp } from 'lucide-react';
 import { adminApi } from '../../api/admin';
 import { PageSpinner } from '../../components/ui/Spinner';
+import { useAdminEventFilter } from '../../context/AdminEventFilterContext';
 
 export function AdminOverviewPage() {
+  const { selectedEventId } = useAdminEventFilter();
+
   const revenueQuery = useQuery({
-    queryKey: ['admin-revenue'],
-    queryFn: () => adminApi.getRevenue().then((r) => r.data),
+    queryKey: ['admin-revenue', selectedEventId],
+    queryFn: () => adminApi.getRevenue({ eventId: selectedEventId || undefined }).then((r) => r.data),
   });
   const usersQuery = useQuery({
     queryKey: ['admin-users', { page: 1, limit: 1 }],
     queryFn: () => adminApi.listUsers({ page: 1, limit: 1 }).then((r) => r.data),
   });
   useQuery({
-    queryKey: ['admin-orders', { page: 1, limit: 1 }],
-    queryFn: () => adminApi.listOrders({ page: 1, limit: 1 }).then((r) => r.data),
+    queryKey: ['admin-orders', { page: 1, limit: 1, eventId: selectedEventId }],
+    queryFn: () => adminApi.listOrders({ page: 1, limit: 1, eventId: selectedEventId || undefined }).then((r) => r.data),
   });
 
   if (revenueQuery.isLoading) return <PageSpinner />;

@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { adminApi } from '../../api/admin';
 import { eventsApi } from '../../api/events';
 import type { PromoCode, Event } from '../../types';
+import { useAdminEventFilter } from '../../context/AdminEventFilterContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -554,6 +555,7 @@ function EditModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminPromoCodesPage() {
+  const { selectedEventId } = useAdminEventFilter();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<PromoCode | null>(null);
@@ -561,8 +563,8 @@ export default function AdminPromoCodesPage() {
   const [copied, setCopied] = useState<string | null>(null);
 
   const { data: promoData, isLoading } = useQuery({
-    queryKey: ['admin', 'promo-codes'],
-    queryFn: () => adminApi.listPromoCodes().then((r) => r.data),
+    queryKey: ['admin', 'promo-codes', selectedEventId],
+    queryFn: () => adminApi.listPromoCodes({ eventId: selectedEventId || undefined }).then((r) => r.data),
   });
 
   const { data: eventsData } = useQuery({

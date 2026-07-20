@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, X, Save } from "lucide-react";
 import { format } from "date-fns";
@@ -97,6 +97,19 @@ export function AdminEventsPage() {
       toast.success("Event updated");
       setEditingEvent(null);
       setShowEventForm(false);
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      adminApi.updateEvent(id, { isActive }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["admin-events-list"] });
+      toast.success("Event visibility updated!");
+    },
+    onError: () => {
+      toast.error("Failed to update event visibility.");
     },
   });
 
@@ -496,7 +509,22 @@ export function AdminEventsPage() {
                     </p>
                     <p className="text-xs text-gray-500 mt-1">{event.ticketTiers.length} tier(s)</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    {/* Active/Inactive Toggle Button */}
+                    <button
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all border ${
+                        event.isActive
+                          ? "bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20"
+                          : "bg-gray-800 text-gray-500 border-gray-700 hover:bg-gray-700/60"
+                      }`}
+                      onClick={() => toggleActiveMutation.mutate({ id: event.id, isActive: !event.isActive })}
+                      disabled={toggleActiveMutation.isPending}
+                      title={event.isActive ? "Click to set Inactive (will hide from public)" : "Click to set Active (will show on public website)"}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${event.isActive ? "bg-green-400 animate-pulse" : "bg-gray-600"}`}></span>
+                      {event.isActive ? "Visible" : "Hidden"}
+                    </button>
+
                     <button 
                       className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white" 
                       onClick={() => requestPasswordForEdit(event.id)}

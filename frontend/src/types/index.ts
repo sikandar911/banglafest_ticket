@@ -53,6 +53,7 @@ export interface Event {
   performers?: Performer[];
   specialAdditions?: SpecialAddition[];
   ticketTiers: TicketTier[];
+  isActive: boolean;
   createdAt: string;
 }
 

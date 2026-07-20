@@ -7,10 +7,12 @@ import { adminApi } from '../../api/admin';
 import { eventsApi } from '../../api/events';
 import { PageSpinner } from '../../components/ui/Spinner';
 import { OrderStatusBadge } from '../../components/ui/Badge';
+import { useAdminEventFilter } from '../../context/AdminEventFilterContext';
 
 
 
 export function AdminOrdersPage() {
+  const { selectedEventId: filterEventId } = useAdminEventFilter();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
@@ -26,8 +28,8 @@ export function AdminOrdersPage() {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-orders', { page, status }],
-    queryFn: () => adminApi.listOrders({ page, limit: 20, status: status || undefined }).then((r) => r.data),
+    queryKey: ['admin-orders', { page, status, filterEventId }],
+    queryFn: () => adminApi.listOrders({ page, limit: 20, status: status || undefined, eventId: filterEventId || undefined }).then((r) => r.data),
   });
 
   const { data: promoCodesData } = useQuery({

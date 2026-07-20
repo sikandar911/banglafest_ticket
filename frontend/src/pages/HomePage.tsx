@@ -85,9 +85,11 @@ export function HomePage() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent" />
-                    {allSoldOut && (
+                    {!event.isActive ? (
+                      <span className="absolute top-3 right-3 bg-red-950/90 text-red-400 border border-red-850 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-widest">Booking Closed</span>
+                    ) : allSoldOut ? (
                       <span className="absolute top-3 right-3 badge-sold-out">Sold Out</span>
-                    )}
+                    ) : null}
                   </div>
                 ) : (
                   <div className="h-2 bg-gradient-to-r from-primary-700 to-primary-500 rounded-t-xl" />
@@ -125,7 +127,9 @@ export function HomePage() {
                     <span className="text-white font-semibold">
                       {minPrice !== null ? `From £${minPrice.toFixed(2)}` : event.ticketTiers.length === 0 ? 'Tickets TBA' : 'Free'}
                     </span>
-                    {event.ticketTiers.length === 0 ? (
+                    {!event.isActive ? (
+                      <span className="text-xs font-bold uppercase tracking-wider text-red-400 bg-red-950/40 border border-red-900/40 px-2.5 py-1.5 rounded-lg">Booking Closed</span>
+                    ) : event.ticketTiers.length === 0 ? (
                       <span className="text-xs text-gray-500 font-medium">Coming Soon</span>
                     ) : allSoldOut ? (
                       <span className="badge-sold-out">Sold Out</span>

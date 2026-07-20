@@ -60,7 +60,7 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
 export async function updateEvent(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const { title, description, startTime, endTime, location, imageUrl, performers, specialAdditions } = req.body;
+    const { title, description, startTime, endTime, location, imageUrl, performers, specialAdditions, isActive } = req.body;
 
     const existing = await prisma.event.findUnique({ where: { id } });
     if (!existing) {
@@ -83,6 +83,7 @@ export async function updateEvent(req: AuthRequest, res: Response, next: NextFun
         ...(specialAdditions !== undefined && {
           specialAdditions: specialAdditions?.length ? JSON.stringify(specialAdditions) : null,
         }),
+        ...(isActive !== undefined && { isActive }),
       },
     });
 
@@ -235,22 +236,39 @@ export async function updateTier(req: Request, res: Response, next: NextFunction
 // ─── Finance & Reporting ──────────────────────────────────────────────────────
 
 // GET /api/admin/revenue
-export async function getRevenue(_req: Request, res: Response, next: NextFunction): Promise<void> {
+// GET /api/admin/revenue
+export async function getRevenue(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const { eventId } = req.query as { eventId?: string };
+
+    const orderWhere = (base: any) => {
+      if (eventId) {
+        return { ...base, ticketTier: { eventId } };
+      }
+      return base;
+    };
+
+    const ticketWhere = (base: any) => {
+      if (eventId) {
+        return { ...base, ticketTier: { eventId } };
+      }
+      return base;
+    };
+
     const result = await prisma.order.aggregate({
-      where: { status: 'PAID' },
+      where: orderWhere({ status: 'PAID' }),
       _sum: { totalAmount: true },
       _count: { id: true },
     });
 
     const refundedResult = await prisma.order.aggregate({
-      where: { status: 'REFUNDED' },
+      where: orderWhere({ status: 'REFUNDED' }),
       _sum: { totalAmount: true },
       _count: { id: true },
     });
 
     const recentOrders = await prisma.order.findMany({
-      where: { status: { in: ['PAID', 'REFUNDED'] } },
+      where: orderWhere({ status: { in: ['PAID', 'REFUNDED'] } }),
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: {
@@ -260,21 +278,21 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
     });
 
     const salesExecResult = await prisma.order.aggregate({
-      where: { status: 'PAID', salesExecutiveId: { not: null } },
+      where: orderWhere({ status: 'PAID', salesExecutiveId: { not: null } }),
       _sum: { totalAmount: true },
       _count: { id: true },
     });
 
     const salesExecTicketCount = await prisma.ticket.count({
-      where: {
+      where: ticketWhere({
         order: { salesExecutiveId: { not: null }, status: 'PAID' },
-      },
+      }),
     });
 
     // Get sales executive user-wise breakdown
     const salesExecutiveBreakdown = await prisma.order.groupBy({
       by: ['salesExecutiveId'],
-      where: { status: 'PAID', salesExecutiveId: { not: null } },
+      where: orderWhere({ status: 'PAID', salesExecutiveId: { not: null } }),
       _sum: { totalAmount: true },
       _count: { id: true },
     });
@@ -291,7 +309,7 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
       salesExecutiveBreakdown.map(async (breakdown) => {
         const user = salesExecUsers.find(u => u.id === breakdown.salesExecutiveId);
         const ticketCount = await prisma.ticket.count({
-          where: { order: { salesExecutiveId: breakdown.salesExecutiveId, status: 'PAID' } },
+          where: ticketWhere({ order: { salesExecutiveId: breakdown.salesExecutiveId, status: 'PAID' } }),
         });
         return {
           userId: breakdown.salesExecutiveId,
@@ -311,22 +329,23 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
 
     // --- Ticket Breakdown calculations ---
     const allTiers = await prisma.ticketTier.findMany({
+      where: eventId ? { eventId } : {},
       select: { id: true, name: true },
     });
 
     const salesExecTierCounts = await prisma.ticket.groupBy({
       by: ['ticketTierId'],
-      where: {
+      where: ticketWhere({
         order: { status: 'PAID', salesExecutiveId: { not: null } },
-      },
+      }),
       _count: { id: true },
     });
 
     const onlineTierCounts = await prisma.ticket.groupBy({
       by: ['ticketTierId'],
-      where: {
+      where: ticketWhere({
         order: { status: 'PAID', salesExecutiveId: null },
-      },
+      }),
       _count: { id: true },
     });
 
@@ -354,17 +373,17 @@ export async function getRevenue(_req: Request, res: Response, next: NextFunctio
 
     // --- Check-in / Check-out status calculations ---
     const checkedInCount = await prisma.ticket.count({
-      where: { status: 'CHECKED_IN', inStatus: true },
+      where: ticketWhere({ status: 'CHECKED_IN', inStatus: true }),
     });
 
     const checkedOutCount = await prisma.ticket.count({
-      where: { status: 'CHECKED_IN', inStatus: false },
+      where: ticketWhere({ status: 'CHECKED_IN', inStatus: false }),
     });
 
     // --- Promo Code Breakdown calculations ---
     const promoGrouped = await prisma.order.groupBy({
       by: ['promoCodeId'],
-      where: { status: 'PAID', promoCodeId: { not: null } },
+      where: orderWhere({ status: 'PAID', promoCodeId: { not: null } }),
       _sum: { totalAmount: true, quantity: true },
       _count: { id: true },
     });
@@ -496,10 +515,16 @@ export async function listUsers(_req: Request, res: Response, next: NextFunction
 // GET /api/admin/orders
 export async function listOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { status, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const { status, page = '1', limit = '20', eventId } = req.query as Record<string, string>;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = status ? { status: status as 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' } : {};
+    const where: any = {};
+    if (status) {
+      where.status = status as 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+    }
+    if (eventId) {
+      where.ticketTier = { eventId };
+    }
 
     const [orders, total] = await prisma.$transaction([
       prisma.order.findMany({
@@ -878,9 +903,13 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
 // ─── Promo Codes ──────────────────────────────────────────────────────────────
 
 // GET /api/admin/promo-codes
-export async function listPromoCodes(_req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listPromoCodes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const { eventId } = req.query as { eventId?: string };
+    const where = eventId ? { events: { some: { eventId } } } : {};
+
     const promoCodes = await prisma.promoCode.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         events: {

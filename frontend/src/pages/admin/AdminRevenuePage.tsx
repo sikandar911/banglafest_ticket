@@ -3,20 +3,22 @@ import { PoundSterling, TrendingUp, AlertCircle, Users, X, Tag } from 'lucide-re
 import { useState } from 'react';
 import { adminApi } from '../../api/admin';
 import { PageSpinner } from '../../components/ui/Spinner';
+import { useAdminEventFilter } from '../../context/AdminEventFilterContext';
 
 export function AdminRevenuePage() {
+  const { selectedEventId } = useAdminEventFilter();
   const [showSalesModal, setShowSalesModal] = useState(false);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin-revenue'],
-    queryFn: () => adminApi.getRevenue().then((r) => {
+    queryKey: ['admin-revenue', selectedEventId],
+    queryFn: () => adminApi.getRevenue({ eventId: selectedEventId || undefined }).then((r) => {
       console.log('Revenue API Response:', r.data);
       return r.data;
     }),
   });
 
   const { data: promoData, isLoading: isPromoLoading, isError: isPromoError, refetch: refetchPromos } = useQuery({
-    queryKey: ['admin', 'promo-codes'],
-    queryFn: () => adminApi.listPromoCodes().then((r) => r.data),
+    queryKey: ['admin', 'promo-codes', selectedEventId],
+    queryFn: () => adminApi.listPromoCodes({ eventId: selectedEventId || undefined }).then((r) => r.data),
   });
 
   const [selectedPromoForModal, setSelectedPromoForModal] = useState<string | null>(null);

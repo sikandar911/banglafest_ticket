@@ -41,6 +41,7 @@ model Event {
   imageUrl         String?      @map("image_url")
   performers       String?      // JSON: [{name, ticketDisplayName}]
   specialAdditions String?      @map("special_additions") // JSON: [{name, description, ticketDisplayText}]
+  isActive         Boolean      @default(true) @map("is_active")
   creator          User?        @relation("EventCreatedBy", fields: [createdBy], references: [id])
   ticketTiers      TicketTier[]
   promoCodes  PromoCodeEvent[]
